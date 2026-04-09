@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 const fallbackUrl = 'https://placeholder.supabase.co'
 const fallbackKey = 'public-anon-key-placeholder'
 
