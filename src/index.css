@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Tajawal', sans-serif;
+    background-color: #f1f5f9;
+    background-image:
+      radial-gradient(circle at 10% 5%, rgba(59, 130, 246, 0.08), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(236, 72, 153, 0.1), transparent 42%),
+      radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.08), transparent 45%);
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Cairo', sans-serif;
+  }
+}
