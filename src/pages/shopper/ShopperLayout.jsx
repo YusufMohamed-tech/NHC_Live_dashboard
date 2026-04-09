@@ -14,6 +14,8 @@ function getTitle(pathname) {
   if (pathname === '/shopper/dashboard') return 'لوحة تحكم المتسوق'
   if (pathname.includes('/shopper/visits/') && pathname.split('/').length > 3)
     return 'تفاصيل الزيارة'
+  if (pathname.includes('/shopper/completed/') && pathname.split('/').length > 3)
+    return 'تفاصيل الزيارة المكتملة'
   if (pathname.includes('/shopper/visits')) return 'الزيارات المخصصة'
   if (pathname.includes('/shopper/completed')) return 'الزيارات المكتملة'
   if (pathname.includes('/shopper/reports')) return 'التقارير'

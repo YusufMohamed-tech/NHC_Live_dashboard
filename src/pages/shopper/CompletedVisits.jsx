@@ -151,7 +151,7 @@ export default function CompletedVisits() {
               </p>
 
               <Link
-                to={`/shopper/visits/${visit.id}`}
+                to={`/shopper/completed/${visit.id}`}
                 className="text-sm font-bold text-indigo-600 transition hover:text-indigo-800"
               >
                 عرض التقييم الكامل

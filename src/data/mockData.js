@@ -112,6 +112,7 @@ export const visits = [
   //   notes: '',
   //   pointsEarned: 0,
   //   waitMinutes: 0,
+  //   file_urls: ['visits/visit-1/1700000000000_sample.jpg'],
   // },
 ]
 

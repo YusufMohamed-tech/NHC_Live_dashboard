@@ -25,8 +25,10 @@ import ShopperReports from './pages/shopper/Reports'
 import SuperAdminLayout from './pages/superadmin/SuperAdminLayout'
 import SuperAdminOverview from './pages/superadmin/Overview'
 import ManageAdmins from './pages/superadmin/ManageAdmins'
+import { supabase } from './lib/supabase'
 import { calculateWeightedScore } from './utils/scoring'
 import { calculateVisitPoints } from './utils/points'
+import { getFilePointsFromPath, normalizeVisitFileUrls } from './utils/visitFiles'
 
 const AUTH_STORAGE_KEY = 'nhc-mystery-auth'
 
@@ -490,6 +492,7 @@ function App() {
       notes: payload.notes ?? '',
       pointsEarned: payload.pointsEarned ?? 0,
       waitMinutes: payload.waitMinutes ?? 0,
+      file_urls: Array.isArray(payload.file_urls) ? payload.file_urls : [],
     }
 
     setVisits((previous) => [nextVisit, ...previous])
@@ -606,6 +609,13 @@ function App() {
       completedVisits: completedVisitsCount,
     })
 
+    const mediaPoints = normalizeVisitFileUrls(targetVisit.file_urls).reduce(
+      (sum, path) => sum + getFilePointsFromPath(path),
+      0,
+    )
+
+    const finalVisitPoints = pointsEarned + mediaPoints
+
     setVisits((previous) =>
       previous.map((visit) => {
         if (visit.id !== visitId) return visit
@@ -615,7 +625,8 @@ function App() {
           status: 'مكتملة',
           scores: payload.scores,
           notes: payload.notes,
-          pointsEarned,
+          pointsEarned: finalVisitPoints,
+          file_urls: Array.isArray(visit.file_urls) ? visit.file_urls : [],
         }
       }),
     )
@@ -624,14 +635,16 @@ function App() {
       previous.map((shopper) => {
         if (shopper.id !== targetVisit.assignedShopperId) return shopper
 
-        const previousPoints = wasCompleted ? Number(targetVisit.pointsEarned ?? 0) : 0
+        const previousPoints = wasCompleted
+          ? Number(targetVisit.pointsEarned ?? 0)
+          : mediaPoints
 
         return {
           ...shopper,
           visits: Number(shopper.visits ?? 0) + (wasCompleted ? 0 : 1),
           points: Math.max(
             0,
-            Number(shopper.points ?? 0) - previousPoints + pointsEarned,
+            Number(shopper.points ?? 0) - previousPoints + finalVisitPoints,
           ),
         }
       }),
@@ -650,7 +663,69 @@ function App() {
       return [...remaining, ...attached]
     })
 
-    return pointsEarned
+    return finalVisitPoints
+  }
+
+  const updateVisitFiles = async ({ visitId, fileUrls, pointsDelta = 0 }) => {
+    const targetVisit = visits.find((visit) => visit.id === visitId)
+    if (!targetVisit) {
+      throw new Error('visit-not-found')
+    }
+
+    if (activeUser?.role !== 'shopper' || targetVisit.assignedShopperId !== activeUser.id) {
+      throw new Error('not-allowed')
+    }
+
+    const nextFileUrls = Array.isArray(fileUrls) ? fileUrls : []
+    const delta = Number(pointsDelta ?? 0)
+
+    const { error: visitSyncError } = await supabase
+      .from('visits')
+      .update({ file_urls: nextFileUrls })
+      .eq('id', visitId)
+
+    if (visitSyncError) {
+      throw visitSyncError
+    }
+
+    setVisits((previous) =>
+      previous.map((visit) => {
+        if (visit.id !== visitId) return visit
+
+        return {
+          ...visit,
+          file_urls: nextFileUrls,
+          pointsEarned: Math.max(0, Number(visit.pointsEarned ?? 0) + delta),
+        }
+      }),
+    )
+
+    if (delta !== 0) {
+      const shopperBefore = shoppers.find((shopper) => shopper.id === targetVisit.assignedShopperId)
+      const nextPoints = Math.max(0, Number(shopperBefore?.points ?? 0) + delta)
+
+      setShoppers((previous) =>
+        previous.map((shopper) => {
+          if (shopper.id !== targetVisit.assignedShopperId) return shopper
+
+          return {
+            ...shopper,
+            points: Math.max(0, Number(shopper.points ?? 0) + delta),
+          }
+        }),
+      )
+
+      const { error: shopperSyncError } = await supabase
+        .from('shoppers')
+        .update({ points: nextPoints })
+        .eq('id', targetVisit.assignedShopperId)
+
+      if (shopperSyncError) {
+        console.warn('تعذر مزامنة نقاط المتسوق مع Supabase', shopperSyncError.message)
+      }
+    }
+
+    return true
   }
 
   const adminScopeProps = {
@@ -716,6 +791,7 @@ function App() {
     dataLoading,
     dataError,
     completeVisit,
+    updateVisitFiles,
     onLogout: handleLogout,
   }
 
@@ -778,6 +854,7 @@ function App() {
         <Route path="visits" element={<MyVisits />} />
         <Route path="visits/:visitId" element={<VisitDetail />} />
         <Route path="completed" element={<CompletedVisits />} />
+        <Route path="completed/:visitId" element={<VisitDetail fromCompleted />} />
         <Route path="reports" element={<ShopperReports />} />
       </Route>
 

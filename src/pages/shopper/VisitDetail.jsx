@@ -5,6 +5,7 @@ import { ErrorState, LoadingState } from '../../components/DataState'
 import PointsBadge from '../../components/PointsBadge'
 import StarRating from '../../components/StarRating'
 import StatusBadge from '../../components/StatusBadge'
+import VisitFilesUploader from '../../components/VisitFilesUploader'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 
 function makeInitialScores(visit, criteria) {
@@ -16,11 +17,17 @@ function makeInitialScores(visit, criteria) {
   }, {})
 }
 
-export default function VisitDetail() {
+export default function VisitDetail({ fromCompleted = false }) {
   const { visitId } = useParams()
   const navigate = useNavigate()
-  const { myVisits, evaluationCriteria, completeVisit, dataLoading, dataError } =
-    useOutletContext()
+  const {
+    myVisits,
+    evaluationCriteria,
+    completeVisit,
+    updateVisitFiles,
+    dataLoading,
+    dataError,
+  } = useOutletContext()
 
   const visit = useMemo(
     () => myVisits.find((item) => item.id === visitId),
@@ -40,11 +47,13 @@ export default function VisitDetail() {
   }
 
   if (!visit) {
+    const fallbackPath = fromCompleted ? '/shopper/completed' : '/shopper/visits'
+
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <p className="text-slate-600">الزيارة غير موجودة أو لا تملك صلاحية الوصول إليها.</p>
         <Link
-          to="/shopper/visits"
+          to={fallbackPath}
           className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white"
         >
           العودة إلى الزيارات
@@ -55,6 +64,7 @@ export default function VisitDetail() {
 
   const isCompleted = visit.status === 'مكتملة'
   const finalScore = calculateWeightedScore(scores)
+  const backPath = fromCompleted || isCompleted ? '/shopper/completed' : '/shopper/visits'
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -74,6 +84,14 @@ export default function VisitDetail() {
     })
 
     navigate('/shopper/completed', { replace: true })
+  }
+
+  const handleSaveFiles = async ({ visitId: targetVisitId, fileUrls, pointsDelta }) => {
+    await updateVisitFiles({
+      visitId: targetVisitId,
+      fileUrls,
+      pointsDelta,
+    })
   }
 
   return (
@@ -112,6 +130,8 @@ export default function VisitDetail() {
           <p className="mt-2 text-sm text-slate-600">{visit.scenario}</p>
         </div>
       </section>
+
+      <VisitFilesUploader visit={visit} onSaveFiles={handleSaveFiles} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -178,7 +198,7 @@ export default function VisitDetail() {
             )}
 
             <Link
-              to={isCompleted ? '/shopper/completed' : '/shopper/visits'}
+              to={backPath}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               العودة

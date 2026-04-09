@@ -1,5 +1,5 @@
-import { BarChart3, Download } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { BarChart3, Download, LoaderCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   Bar,
@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
+import { generateMysteryShopperPdf } from '../../utils/reportsPdf'
 import { calculateWeightedScore } from '../../utils/scoring'
 
 const subTabs = [
@@ -33,10 +34,22 @@ function getScoreCellClasses(score) {
 }
 
 export default function Reports() {
-  const { shoppers, visits, issues, offices, evaluationCriteria, dataLoading, dataError } =
+  const { user, shoppers, visits, issues, offices, evaluationCriteria, dataLoading, dataError } =
     useOutletContext()
 
   const [activeSubTab, setActiveSubTab] = useState('overview')
+  const [isExporting, setIsExporting] = useState(false)
+  const [toast, setToast] = useState({ type: '', message: '' })
+
+  useEffect(() => {
+    if (!toast.message) return undefined
+
+    const timeout = window.setTimeout(() => {
+      setToast({ type: '', message: '' })
+    }, 2600)
+
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   const completedVisits = useMemo(
     () => visits.filter((visit) => visit.status === 'مكتملة'),
@@ -171,78 +184,29 @@ export default function Reports() {
     points: shopper.points,
   }))
 
-  const toCsv = (rows) => {
-    return rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`)
-          .join(','),
+  const canExportPdf = user?.role === 'superadmin' || user?.role === 'admin'
+
+  const handleExport = async () => {
+    if (!canExportPdf || isExporting) return
+
+    setIsExporting(true)
+
+    try {
+      await Promise.resolve(
+        generateMysteryShopperPdf({
+          shoppers,
+          visits,
+          issues,
+          evaluationCriteria,
+        }),
       )
-      .join('\n')
-  }
 
-  const handleExport = () => {
-    const summaryRows = [
-      ['نوع التقرير', 'القيمة'],
-      ['الزيارات المكتملة', completedVisits.length],
-      ['متوسط التقييم', averageRating.toFixed(2)],
-      ['إجمالي المشاكل', issueSummary.total],
-      ['معدل الإكمال', `${completionRate}%`],
-    ]
-
-    const shoppersRows = [
-      ['المتسوق', 'الزيارات', 'متوسط التقييم', 'النقاط', 'الحالة'],
-      ...shopperRows.map((row) => [
-        row.name,
-        row.visitsCount,
-        row.averageRating.toFixed(2),
-        row.points,
-        row.status,
-      ]),
-    ]
-
-    const officesCsvRows = [
-      ['المنشأة', 'المدينة', 'عدد الزيارات', 'متوسط التقييم', 'أفضل معيار', 'أضعف معيار'],
-      ...officesRows.map((row) => [
-        row.officeName,
-        row.city,
-        row.visitsCount,
-        row.average.toFixed(2),
-        row.best,
-        row.weak,
-      ]),
-    ]
-
-    const issuesRows = [
-      ['المنشأة', 'المدينة', 'التاريخ', 'الحدة', 'الوصف'],
-      ...issueRecords.map((issue) => [
-        issue.officeName,
-        issue.city,
-        issue.date,
-        issue.severity,
-        issue.description,
-      ]),
-    ]
-
-    const csvContent = [
-      toCsv(summaryRows),
-      '',
-      toCsv(shoppersRows),
-      '',
-      toCsv(officesCsvRows),
-      '',
-      toCsv(issuesRows),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], {
-      type: 'text/csv;charset=utf-8',
-    })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = 'nhc-live-report.csv'
-    anchor.click()
-    URL.revokeObjectURL(url)
+      setToast({ type: 'success', message: 'تم تصدير التقرير بنجاح' })
+    } catch {
+      setToast({ type: 'error', message: 'تعذر إنشاء التقرير، حاول مرة أخرى' })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   if (dataLoading) {
@@ -259,6 +223,20 @@ export default function Reports() {
 
   return (
     <div className="space-y-4">
+      {toast.message && (
+        <div className="fixed end-4 top-4 z-50">
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-bold shadow-lg ${
+              toast.type === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-rose-200 bg-rose-50 text-rose-700'
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
@@ -266,14 +244,26 @@ export default function Reports() {
             <p className="text-sm text-slate-500">لوحات تحليلية تفصيلية لمتابعة الأداء</p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExport}
-            className="ms-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
-          >
-            <Download className="h-4 w-4" />
-            تصدير التقرير ⬇
-          </button>
+          {canExportPdf && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="ms-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isExporting ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  جاري إنشاء التقرير...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  تصدير التقرير
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
