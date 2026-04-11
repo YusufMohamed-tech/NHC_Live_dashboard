@@ -46,176 +46,212 @@
 
   .co-brand-lockup {
     display: inline-flex;
-    align-items: center;
-    padding: 16px 24px;
-    background: transparent;
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    animation: coBrandFadeInUp 0.6s ease-out forwards;
   }
 
   .co-brand-row {
     direction: ltr;
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
+    padding: 4px;
   }
 
   .co-brand-logo-nhc {
-    height: 44px;
+    height: 52px;
     width: auto;
     object-fit: contain;
     background: transparent !important;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.04));
+    transition: transform 0.3s ease;
   }
 
-  .co-brand-logo-chess {
-    height: 32px;
-    width: auto;
-    object-fit: contain;
-    background: transparent !important;
+  .co-brand-row:hover .co-brand-logo-nhc {
+    transform: scale(1.02);
   }
 
-  .co-brand-chess-stack {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .co-brand-connector-stack {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    min-width: 48px;
-  }
-
-  .co-brand-connector {
-    width: 48px;
-    height: 2px;
+  .co-brand-divider {
+    width: 2px;
+    height: 48px;
     background: linear-gradient(
-      90deg,
-      var(--co-brand-nhc-green) 0%,
-      var(--co-brand-chess-lime) 100%
+      to bottom,
+      transparent 0%,
+      rgba(156, 163, 175, 0.4) 20%,
+      rgba(156, 163, 175, 0.4) 80%,
+      transparent 100%
     );
     border-radius: 2px;
+    transition: opacity 0.3s ease;
   }
 
-  .co-brand-print-tagline {
-    font-size: 9px;
-    font-weight: 600;
-    color: #6b7280;
-    line-height: 1;
+  .co-brand-row:hover .co-brand-divider {
+    opacity: 0.8;
+  }
+
+  .co-brand-partner-block {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    transition: opacity 0.3s ease;
+  }
+
+  .co-brand-row:hover .co-brand-partner-block {
+    opacity: 0.85;
   }
 
   .co-brand-powered {
-    margin-top: 4px;
     font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.8px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--co-brand-muted);
+    margin-bottom: 6px;
     white-space: nowrap;
   }
 
-  .co-brand-light .co-brand-connector {
-    width: 56px;
-    height: 3px;
-    margin: 0 16px;
-    border-radius: 2px;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0.9), rgba(168, 201, 58, 0.7));
+  .co-brand-logo-chess {
+    height: 24px;
+    width: auto;
+    object-fit: contain;
+    background: transparent !important;
+    transition: transform 0.3s ease;
+  }
+
+  .co-brand-light .co-brand-divider {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 20%,
+      rgba(255, 255, 255, 0.3) 80%,
+      transparent 100%
+    );
   }
 
   .co-brand-light .co-brand-powered {
-    font-size: 9px;
-    line-height: 1;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.65);
+    color: rgba(255, 255, 255, 0.85);
   }
 
   .co-brand-light .co-brand-logo-nhc,
   .co-brand-light .co-brand-logo-chess {
-    filter: brightness(0) invert(1);
+    filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0,0,0,0.08));
     background: transparent !important;
   }
 
   .co-brand-light .co-brand-logo-nhc {
-    height: 52px;
+    height: 60px;
   }
 
   .co-brand-light .co-brand-logo-chess {
-    height: 30px;
+    height: 28px;
   }
 
-  .co-brand-light {
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+  .co-brand-light .co-brand-row {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
-  .co-brand-login-animated .co-brand-connector {
-    width: 0;
-    opacity: 0;
-    animation: coBrandBridgeDraw 600ms ease-out 300ms forwards;
+  .co-brand-print .co-brand-divider {
+    background: #e5e7eb;
+    height: 28px;
   }
 
-  .co-brand-light.co-brand-login-animated .co-brand-connector {
-    animation: coBrandBridgeDrawLight 600ms ease-out 300ms forwards;
+  .co-brand-print .co-brand-powered {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+    margin-bottom: 3px;
+  }
+
+  .co-brand-print .co-brand-logo-nhc {
+    height: 38px;
+    filter: none;
+  }
+
+  .co-brand-print .co-brand-logo-chess {
+    height: 18px;
+    filter: none;
   }
 
   .co-brand-sidebar-container {
     container-type: inline-size;
   }
 
-  @container (max-width: 200px) {
+  @container (max-width: 220px) {
     .co-brand-lockup.sidebar-adaptive .co-brand-row {
       flex-direction: column;
-      gap: 8px;
-    }
-
-    .co-brand-lockup.sidebar-adaptive .co-brand-connector-stack {
-      min-width: auto;
-    }
-
-    .co-brand-lockup.sidebar-adaptive .co-brand-connector {
-      width: 2px;
-      height: 36px;
-      background: linear-gradient(
-        180deg,
-        var(--co-brand-nhc-green) 0%,
-        var(--co-brand-chess-lime) 100%
-      );
-    }
-
-    .co-brand-lockup.sidebar-adaptive .co-brand-powered {
+      gap: 16px;
+      align-items: center;
       text-align: center;
     }
-  }
 
-  @keyframes coBrandBridgeDraw {
-    from {
-      width: 0;
-      opacity: 0;
+    .co-brand-lockup.sidebar-adaptive .co-brand-logo-nhc {
+      height: 48px;
     }
 
-    to {
+    .co-brand-lockup.sidebar-adaptive .co-brand-divider {
       width: 48px;
-      opacity: 1;
+      height: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(156, 163, 175, 0.4) 20%,
+        rgba(156, 163, 175, 0.4) 80%,
+        transparent 100%
+      );
+    }
+    
+    .co-brand-lockup.sidebar-adaptive .co-brand-partner-block {
+      align-items: center;
     }
   }
 
-  @keyframes coBrandBridgeDrawLight {
-    from {
-      width: 0;
-      opacity: 0;
+  @media (max-width: 640px) {
+    .co-brand-lockup:not(.sidebar-adaptive) .co-brand-row {
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+      text-align: center;
     }
+    .co-brand-lockup:not(.sidebar-adaptive) .co-brand-divider {
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(156, 163, 175, 0.4) 20%,
+        rgba(156, 163, 175, 0.4) 80%,
+        transparent 100%
+      );
+    }
+    .co-brand-light:not(.sidebar-adaptive) .co-brand-divider {
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 20%,
+        rgba(255, 255, 255, 0.3) 80%,
+        transparent 100%
+      );
+    }
+    .co-brand-lockup:not(.sidebar-adaptive) .co-brand-partner-block {
+      align-items: center;
+    }
+  }
 
+  @keyframes coBrandFadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
     to {
-      width: 56px;
       opacity: 1;
+      transform: translateY(0);
     }
   }
 }

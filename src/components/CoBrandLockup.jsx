@@ -20,16 +20,23 @@ export default function CoBrandLockup({
   return (
     <div className={classes}>
       <div className="co-brand-row">
-        <img src="/branding/nhc-logo.png" alt="NHC" className="co-brand-logo-nhc" />
+        <img 
+          src="/branding/nhc-logo.png" 
+          alt="NHC platform dashboard" 
+          className="co-brand-logo-nhc" 
+        />
 
-        <div className="co-brand-connector-stack">
-          {variant === 'print' && <p className="co-brand-print-tagline">في شراكة مع</p>}
-          <span className="co-brand-connector" />
-        </div>
+        <div className="co-brand-divider" aria-hidden="true" />
 
-        <div className="co-brand-chess-stack">
-          <img src="/branding/chessboard-logo.jpeg" alt="Chessboard" className="co-brand-logo-chess" />
-          <p className="co-brand-powered">Powered by Chessboard</p>
+        <div className="co-brand-partner-block">
+          <span className="co-brand-powered">
+            {variant === 'print' ? 'في شراكة مع' : 'Powered by'}
+          </span>
+          <img 
+            src="/branding/chessboard-logo.jpeg" 
+            alt="Chessboard technology partner" 
+            className="co-brand-logo-chess" 
+          />
         </div>
       </div>
     </div>
