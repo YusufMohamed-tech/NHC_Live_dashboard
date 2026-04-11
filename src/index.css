@@ -137,8 +137,6 @@
 
   .co-brand-light .co-brand-logo-nhc,
   .co-brand-light .co-brand-logo-chess {
-    filter: grayscale(1) invert(1) drop-shadow(0 2px 8px rgba(0,0,0,0.08));
-    mix-blend-mode: screen;
     background: transparent !important;
   }
 

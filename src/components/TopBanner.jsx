@@ -53,10 +53,9 @@ export default function TopBanner() {
           height: 64px;
           width: auto;
           object-fit: contain;
-          filter: grayscale(1) invert(1);
-          mix-blend-mode: screen;
-          opacity: 0.9;
-          transition: opacity 0.3s ease;
+          opacity: 0.95;
+          transition: opacity 0.3s ease, transform 0.3s ease;
+          border-radius: 8px; /* Smooth corners for raw files if they have boxes */
         }
 
         /* Desktop Layout override */
