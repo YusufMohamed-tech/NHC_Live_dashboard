@@ -105,17 +105,17 @@
     white-space: nowrap;
   }
 
-  .co-brand-light .co-brand-logo-nhc,
-  .co-brand-light .co-brand-logo-chess {
-    filter: brightness(0) invert(1);
-  }
-
   .co-brand-light .co-brand-connector {
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.8) 100%);
   }
 
   .co-brand-light .co-brand-powered {
     color: rgba(255, 255, 255, 0.6);
+  }
+
+  .co-brand-light .co-brand-logo-nhc,
+  .co-brand-light .co-brand-logo-chess {
+    filter: none;
   }
 
   .co-brand-login-animated .co-brand-connector {

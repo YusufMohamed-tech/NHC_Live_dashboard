@@ -123,7 +123,7 @@ export default function Login({ onLogin }) {
 
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div className="space-y-6">
-              <div className="absolute left-7 top-7 z-20">
+              <div className="max-w-fit">
                 <CoBrandLockup variant="light" animateConnector className="!p-0" />
               </div>
 
