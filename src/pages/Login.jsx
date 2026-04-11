@@ -123,10 +123,6 @@ export default function Login({ onLogin }) {
 
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div className="space-y-6">
-              <div className="max-w-fit">
-                <CoBrandLockup variant="light" animateConnector className="!p-0" />
-              </div>
-
               <div>
                 <p className="text-sm font-semibold text-white/80">منصة قياس تجربة العملاء</p>
                 <h2 className="mt-2 font-display text-4xl font-black leading-tight">
