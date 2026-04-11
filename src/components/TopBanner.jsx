@@ -1,45 +1,117 @@
 import React from 'react'
-import { Sparkles } from 'lucide-react'
 
 export default function TopBanner() {
   return (
-    <div className="relative z-50 flex items-center justify-center overflow-hidden bg-slate-900 border-b border-white/10 px-4 py-4 sm:py-5 sm:px-8 shadow-sm">
-      {/* Background Accents */}
-      <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 via-indigo-900/40 to-lime-500/10" />
-      <div className="absolute -left-1/4 inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-2xl animate-pulse" />
+    <div className="relative z-50 flex items-center justify-center p-[12px_20px] bg-slate-900 border-b border-white/5 overflow-hidden">
+      {/* Subtle SaaS Glow */}
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-2/3 bg-indigo-500/10 blur-3xl rounded-full" 
+        aria-hidden="true" 
+      />
       
-      <div className="relative flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-white/90">
+      <style>{`
+        @keyframes bannerSaaSIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
         
-        {/* Left Side: NHC */}
-        <div className="flex items-center gap-3">
-          <img
-            src="/branding/nhc-logo.png"
-            alt="NHC Platform"
-            className="h-10 sm:h-12 w-auto drop-shadow-lg"
-            style={{ filter: 'grayscale(1) invert(1)', mixBlendMode: 'screen' }}
-          />
-        </div>
+        .saas-branding-pill {
+          position: relative;
+          z-index: 10;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          background: rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-radius: 16px;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+          padding: 16px 24px;
+          transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+          border: 1px solid rgba(255, 255, 255, 0.08);
 
-        {/* Center: Message */}
-        <div className="flex items-center gap-3 md:gap-4" dir="ltr">
-          <div className="hidden md:block h-[1px] w-12 sm:w-20 bg-gradient-to-r from-transparent to-white/30" />
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-emerald-100">
-            <Sparkles className="h-4 w-4 text-lime-400" />
-            <span>In Strategic Partnership With</span>
-          </div>
-          <div className="hidden md:block h-[1px] w-12 sm:w-20 bg-gradient-to-l from-transparent to-white/30" />
-        </div>
+          /* Animation on load */
+          opacity: 0;
+          animation: bannerSaaSIn 0.6s ease-out forwards;
+        }
 
-        {/* Right Side: Chessboard */}
-        <div className="flex items-center gap-3">
-          <img
-            src="/branding/chessboard-logo.jpeg"
-            alt="Chessboard Partner"
-            className="h-10 sm:h-12 w-auto opacity-90 transition-opacity hover:opacity-100 drop-shadow-lg"
-            style={{ filter: 'grayscale(1) invert(1)', mixBlendMode: 'screen' }}
-          />
-        </div>
+        /* Hover interaction */
+        .saas-branding-pill:hover {
+          transform: scale(1.02);
+          background: rgba(255, 255, 255, 0.12);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .saas-brand-logo {
+          height: 36px;
+          width: auto;
+          object-fit: contain;
+          filter: grayscale(1) invert(1);
+          mix-blend-mode: screen;
+          opacity: 0.9;
+          transition: opacity 0.3s ease;
+        }
+
+        /* Desktop Layout override */
+        @media (min-width: 640px) {
+          .saas-branding-pill {
+            flex-direction: row;
+            gap: 24px;
+            padding: 12px 32px;
+          }
+        }
+
+        .saas-divider {
+          width: 32px;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (min-width: 640px) {
+          .saas-divider {
+            width: 1px;
+            height: 24px;
+          }
+        }
+
+        .saas-powered-text {
+          font-family: 'Inter', 'Poppins', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: 0.6px;
+          color: rgba(255, 255, 255, 0.65);
+          white-space: nowrap;
+          text-transform: none;
+        }
+      `}</style>
+      
+      <div className="saas-branding-pill" dir="ltr">
+        <img
+          src="/branding/nhc-logo.png"
+          alt="NHC platform"
+          className="saas-brand-logo"
+        />
         
+        <div className="saas-divider" aria-hidden="true" />
+        
+        <span className="saas-powered-text">
+          Powered by Chessboard
+        </span>
+        
+        <div className="saas-divider" aria-hidden="true" />
+        
+        <img
+          src="/branding/chessboard-logo.jpeg"
+          alt="Chessboard Technology Partner"
+          className="saas-brand-logo"
+        />
       </div>
     </div>
   )
