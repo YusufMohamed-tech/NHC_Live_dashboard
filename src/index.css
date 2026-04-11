@@ -5,6 +5,13 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --co-brand-nhc-green: #1b5e3b;
+    --co-brand-chess-lime: #a8c93a;
+    --co-brand-gray: #808080;
+    --co-brand-muted: #9ca3af;
+  }
+
   * {
     @apply box-border;
   }
@@ -35,5 +42,126 @@
 @layer components {
   .font-display {
     font-family: 'Cairo', sans-serif;
+  }
+
+  .co-brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    padding: 16px 24px;
+    background: transparent;
+  }
+
+  .co-brand-row {
+    direction: ltr;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .co-brand-logo-nhc {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .co-brand-logo-chess {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .co-brand-connector-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 48px;
+  }
+
+  .co-brand-connector {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--co-brand-nhc-green) 0%,
+      var(--co-brand-chess-lime) 100%
+    );
+  }
+
+  .co-brand-print-tagline {
+    font-size: 9px;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1;
+  }
+
+  .co-brand-powered {
+    margin-top: 4px;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--co-brand-muted);
+    white-space: nowrap;
+  }
+
+  .co-brand-light .co-brand-logo-nhc,
+  .co-brand-light .co-brand-logo-chess {
+    filter: brightness(0) invert(1);
+  }
+
+  .co-brand-light .co-brand-connector {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.8) 100%);
+  }
+
+  .co-brand-light .co-brand-powered {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .co-brand-login-animated .co-brand-connector {
+    width: 0;
+    opacity: 0;
+    animation: coBrandBridgeDraw 600ms ease-out 300ms forwards;
+  }
+
+  .co-brand-sidebar-container {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 200px) {
+    .co-brand-lockup.sidebar-adaptive .co-brand-row {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .co-brand-lockup.sidebar-adaptive .co-brand-connector-stack {
+      min-width: auto;
+    }
+
+    .co-brand-lockup.sidebar-adaptive .co-brand-connector {
+      width: 2px;
+      height: 36px;
+      background: linear-gradient(
+        180deg,
+        var(--co-brand-nhc-green) 0%,
+        var(--co-brand-chess-lime) 100%
+      );
+    }
+
+    .co-brand-lockup.sidebar-adaptive .co-brand-powered {
+      text-align: center;
+    }
+  }
+
+  @keyframes coBrandBridgeDraw {
+    from {
+      width: 0;
+      opacity: 0;
+    }
+
+    to {
+      width: 48px;
+      opacity: 1;
+    }
   }
 }

@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import BrandLockup from '../components/BrandLockup'
+import CoBrandLockup from '../components/CoBrandLockup'
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate()
@@ -123,7 +123,9 @@ export default function Login({ onLogin }) {
 
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div className="space-y-6">
-              <BrandLockup light />
+              <div className="absolute left-7 top-7 z-20">
+                <CoBrandLockup variant="light" animateConnector className="!p-0" />
+              </div>
 
               <div>
                 <p className="text-sm font-semibold text-white/80">منصة قياس تجربة العملاء</p>

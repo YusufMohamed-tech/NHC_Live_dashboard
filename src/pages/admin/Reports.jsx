@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
+import ReportHeader from '../../components/ReportHeader'
 import { generateMysteryShopperPdf } from '../../utils/reportsPdf'
 import { calculateWeightedScore } from '../../utils/scoring'
 
@@ -192,14 +193,12 @@ export default function Reports() {
     setIsExporting(true)
 
     try {
-      await Promise.resolve(
-        generateMysteryShopperPdf({
-          shoppers,
-          visits,
-          issues,
-          evaluationCriteria,
-        }),
-      )
+      await generateMysteryShopperPdf({
+        shoppers,
+        visits,
+        issues,
+        evaluationCriteria,
+      })
 
       setToast({ type: 'success', message: 'تم تصدير التقرير بنجاح' })
     } catch {
@@ -238,6 +237,7 @@ export default function Reports() {
       )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <ReportHeader />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
             <h2 className="font-display text-2xl font-black text-slate-900">التقارير والإحصائيات</h2>

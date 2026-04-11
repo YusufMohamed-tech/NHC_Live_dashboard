@@ -7,6 +7,7 @@ import {
   Users,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import CoBrandLockup from '../../components/CoBrandLockup'
 import Footer from '../../components/Footer'
 import Navbar from '../../components/Navbar'
 
@@ -48,7 +49,10 @@ export default function SuperAdminLayout(props) {
         />
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[260px_1fr]">
-          <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <aside className="co-brand-sidebar-container h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
+              <CoBrandLockup variant="dark" sidebarAdaptive className="!p-2" />
+            </div>
             <h3 className="mb-2 px-2 text-sm font-black text-slate-700">أقسام الإدارة العليا</h3>
             <nav className="grid gap-1">
               {superAdminTabs.map((tab) => {

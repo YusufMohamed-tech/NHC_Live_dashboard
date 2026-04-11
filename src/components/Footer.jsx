@@ -1,4 +1,4 @@
-import BrandLockup from './BrandLockup'
+import CoBrandLockup from './CoBrandLockup'
 
 export default function Footer() {
   return (
@@ -7,7 +7,7 @@ export default function Footer() {
         <p className="text-center text-sm text-slate-500">
           محمي باتفاقية عدم الإفصاح | NDA | NHC Client | Chessboard Service Provider
         </p>
-        <BrandLockup compact />
+        <CoBrandLockup variant="dark" className="!p-0" />
       </div>
     </footer>
   )

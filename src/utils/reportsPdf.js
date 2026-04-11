@@ -3,6 +3,83 @@ import autoTable from 'jspdf-autotable'
 import { calculateWeightedScore } from './scoring'
 
 const PURPLE = [124, 58, 237]
+const NHC_GREEN = [27, 94, 59]
+const CHESS_LIME = [168, 201, 58]
+
+async function imageToDataUrl(path) {
+  try {
+    const response = await fetch(path)
+    const blob = await response.blob()
+
+    return await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(String(reader.result))
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return ''
+  }
+}
+
+async function loadReportBrandingAssets() {
+  const [nhcLogo, chessLogo] = await Promise.all([
+    imageToDataUrl('/branding/nhc-logo.png'),
+    imageToDataUrl('/branding/chessboard-logo.jpeg'),
+  ])
+
+  return { nhcLogo, chessLogo }
+}
+
+function drawGradientConnector(doc, startX, startY, width = 48) {
+  for (let index = 0; index < width; index += 1) {
+    const ratio = index / width
+    const red = Math.round(NHC_GREEN[0] + (CHESS_LIME[0] - NHC_GREEN[0]) * ratio)
+    const green = Math.round(NHC_GREEN[1] + (CHESS_LIME[1] - NHC_GREEN[1]) * ratio)
+    const blue = Math.round(NHC_GREEN[2] + (CHESS_LIME[2] - NHC_GREEN[2]) * ratio)
+
+    doc.setDrawColor(red, green, blue)
+    doc.line(startX + index, startY, startX + index + 1, startY)
+  }
+}
+
+function drawPdfReportHeader(doc, assets, { pageWidth, y = 18 }) {
+  const nhcX = 34
+  const nhcY = y
+  const nhcWidth = 44
+  const nhcHeight = 44
+
+  const connectorX = nhcX + nhcWidth + 10
+  const connectorY = nhcY + 23
+
+  const chessX = connectorX + 58
+  const chessY = nhcY + 6
+  const chessWidth = 102
+  const chessHeight = 32
+
+  if (assets.nhcLogo) {
+    doc.addImage(assets.nhcLogo, 'PNG', nhcX, nhcY, nhcWidth, nhcHeight)
+  }
+
+  doc.setTextColor(107, 114, 128)
+  doc.setFontSize(9)
+  doc.text('في شراكة مع', connectorX + 24, nhcY + 10, { align: 'center' })
+  drawGradientConnector(doc, connectorX, connectorY, 48)
+
+  if (assets.chessLogo) {
+    doc.addImage(assets.chessLogo, 'JPEG', chessX, chessY, chessWidth, chessHeight)
+  }
+
+  doc.setTextColor(107, 114, 128)
+  doc.setFontSize(8)
+  doc.text('POWERED BY CHESSBOARD', chessX + chessWidth / 2, chessY + chessHeight + 10, {
+    align: 'center',
+  })
+
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(11)
+  doc.text('NHC — برنامج المتحري الخفي', pageWidth - 24, y + 15, { align: 'right' })
+}
 
 function formatArabicDate(value = new Date()) {
   return new Intl.DateTimeFormat('ar-SA', {
@@ -23,7 +100,7 @@ function qualityColor(score) {
   return [244, 63, 94]
 }
 
-function addPageHeaderFooter(doc, generatedAtText) {
+function addPageHeaderFooter(doc, generatedAtText, assets) {
   const totalPages = doc.getNumberOfPages()
   const width = doc.internal.pageSize.getWidth()
   const height = doc.internal.pageSize.getHeight()
@@ -34,11 +111,12 @@ function addPageHeaderFooter(doc, generatedAtText) {
     doc.setPage(pageIndex)
 
     doc.setFillColor(...PURPLE)
-    doc.rect(0, 0, width, 30, 'F')
+    doc.rect(0, 0, width, 68, 'F')
+
+    drawPdfReportHeader(doc, assets, { pageWidth: width, y: 12 })
 
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(11)
-    doc.text('NHC — برنامج المتحري الخفي', width - 24, 20, { align: 'right' })
+    doc.setFontSize(10)
     doc.text(`صفحة ${pageIndex} من ${totalPages}`, 24, 20, { align: 'left' })
 
     doc.setTextColor(71, 85, 105)
@@ -48,7 +126,7 @@ function addPageHeaderFooter(doc, generatedAtText) {
   }
 }
 
-export function generateMysteryShopperPdf({
+export async function generateMysteryShopperPdf({
   shoppers,
   visits,
   issues,
@@ -65,6 +143,7 @@ export function generateMysteryShopperPdf({
 
   const width = doc.internal.pageSize.getWidth()
   const generatedAtText = formatArabicDate(generatedAt)
+  const brandAssets = await loadReportBrandingAssets()
 
   const completedVisits = visits.filter((visit) => visit.status === 'مكتملة')
   const pendingVisits = visits.filter((visit) => visit.status === 'معلقة')
@@ -127,32 +206,27 @@ export function generateMysteryShopperPdf({
   doc.setFillColor(255, 255, 255)
   doc.rect(0, 0, width, doc.internal.pageSize.getHeight(), 'F')
 
-  doc.setDrawColor(...PURPLE)
-  doc.setFillColor(243, 232, 255)
-  doc.roundedRect(width - 170, 52, 130, 58, 8, 8, 'FD')
-  doc.setTextColor(...PURPLE)
-  doc.setFontSize(24)
-  doc.text('NHC', width - 105, 88, { align: 'center' })
+  drawPdfReportHeader(doc, brandAssets, { pageWidth: width, y: 56 })
 
   doc.setTextColor(15, 23, 42)
   doc.setFontSize(28)
-  doc.text('تقرير برنامج المتحري الخفي', width - 40, 170, { align: 'right' })
+  doc.text('تقرير برنامج المتحري الخفي', width - 40, 190, { align: 'right' })
 
   doc.setFontSize(14)
   doc.setTextColor(71, 85, 105)
-  doc.text('National Housing Company — Chessboard', width - 40, 205, {
+  doc.text('National Housing Company — Chessboard', width - 40, 225, {
     align: 'right',
   })
 
   doc.setFontSize(12)
-  doc.text(`تاريخ الإنشاء: ${generatedAtText}`, width - 40, 240, { align: 'right' })
+  doc.text(`تاريخ الإنشاء: ${generatedAtText}`, width - 40, 260, { align: 'right' })
 
   doc.setFillColor(254, 242, 242)
   doc.setDrawColor(244, 63, 94)
-  doc.roundedRect(width - 300, 270, 260, 30, 15, 15, 'FD')
+  doc.roundedRect(width - 300, 290, 260, 30, 15, 15, 'FD')
   doc.setTextColor(190, 24, 93)
   doc.setFontSize(12)
-  doc.text('سري — محمي باتفاقية عدم الإفصاح', width - 170, 290, { align: 'center' })
+  doc.text('سري — محمي باتفاقية عدم الإفصاح', width - 170, 310, { align: 'center' })
 
   doc.addPage()
 
@@ -312,7 +386,7 @@ export function generateMysteryShopperPdf({
     margin: { left: 40, right: 40 },
   })
 
-  addPageHeaderFooter(doc, generatedAtText)
+  addPageHeaderFooter(doc, generatedAtText, brandAssets)
 
   const exportDate = new Intl.DateTimeFormat('en-CA').format(generatedAt)
   const fileName = `NHC-Mystery-Shopper-Report-${exportDate}.pdf`

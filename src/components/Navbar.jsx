@@ -1,5 +1,5 @@
 import { LogOut, ShieldCheck } from 'lucide-react'
-import BrandLockup from './BrandLockup'
+import CoBrandLockup from './CoBrandLockup'
 
 export default function Navbar({ title, user, onLogout, showLiveIndicator = false }) {
   const roleText =
@@ -12,8 +12,8 @@ export default function Navbar({ title, user, onLogout, showLiveIndicator = fals
   return (
     <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="flex items-center gap-2">
-          <BrandLockup compact />
+        <div className="flex items-center gap-2 border-r border-slate-200 pe-3">
+          <CoBrandLockup variant="dark" className="!p-0" />
         </div>
 
         <div>
