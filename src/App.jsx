@@ -84,7 +84,6 @@ import ShopperReports from './pages/shopper/Reports'
 import SuperAdminLayout from './pages/superadmin/SuperAdminLayout'
 import SuperAdminOverview from './pages/superadmin/Overview'
 import ManageAdmins from './pages/superadmin/ManageAdmins'
-import { supabase } from './lib/supabase'
 import { calculateWeightedScore } from './utils/scoring'
 import { calculateVisitPoints } from './utils/points'
 import { getFilePointsFromPath, normalizeVisitFileUrls } from './utils/visitFiles'
@@ -159,10 +158,61 @@ function ProtectedRoute({ user, allowedRole, children }) {
 }
 
 function App() {
-  const [subAdmins, setSubAdmins] = useState(() => [...initialSubAdmins])
-  const [shoppers, setShoppers] = useState(() => [...initialShoppers])
-  const [visits, setVisits] = useState(() => [...initialVisits])
-  const [issues, setIssues] = useState(() => [...initialIssues])
+  const [subAdmins, setSubAdmins] = useState([])
+  const [shoppers, setShoppers] = useState([])
+  const [visits, setVisits] = useState([])
+  const [issues, setIssues] = useState([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState('')
+
+  // 1. Fetch real structured data from Supabase
+  useEffect(() => {
+    let mounted = true
+    async function fetchCoreData() {
+      try {
+        setDataLoading(true)
+        setDataError('')
+
+        const [
+          { data: adminsData, error: adminsError },
+          { data: shoppersData, error: shoppersError },
+          { data: visitsData, error: visitsError },
+          { data: issuesData, error: issuesError }
+        ] = await Promise.all([
+          supabase.from('admins').select('*'),
+          supabase.from('shoppers').select('*'),
+          supabase.from('visits').select('*'),
+          supabase.from('issues').select('*')
+        ])
+
+        if (adminsError) throw adminsError
+        if (shoppersError) throw shoppersError
+        if (visitsError) throw visitsError
+        if (issuesError) throw issuesError
+
+        if (mounted) {
+          // Filter to match the previous structure expectation
+          setSubAdmins(adminsData.filter(a => a.role === 'admin') || [])
+          setShoppers(shoppersData || [])
+          setVisits(visitsData || [])
+          setIssues(issuesData || [])
+        }
+      } catch (err) {
+        console.error('Failed to load application data:', err)
+        if (mounted) {
+          setDataError('فشل الاتصال بقاعدة البيانات. يرجى التأكد من الإعدادات.')
+        }
+      } finally {
+        if (mounted) setDataLoading(false)
+      }
+    }
+
+    fetchCoreData()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const [authUser, setAuthUser] = useState(() => {
     try {
@@ -259,8 +309,8 @@ function App() {
     return issues.filter((issue) => scopedVisitIds.has(issue.visitId))
   }, [activeUser, issues, scopedVisits])
 
-  const dataLoading = false
-  const dataError = ''
+  const dataLoadingValue = dataLoading // Rename variable slightly to avoid naming conflict
+  const dataErrorValue = dataError // Rename variable slightly
 
   const canManageShopper = (shopperId) => {
     if (!activeUser) return false
@@ -413,6 +463,12 @@ function App() {
   const deleteSubAdmin = async (subAdminId) => {
     if (activeUser?.role !== 'superadmin') return false
 
+    const { error } = await supabase.from('admins').delete().eq('id', subAdminId)
+    if (error) {
+      console.error('Error deleting admin:', error)
+      return false
+    }
+
     setSubAdmins((previous) => previous.filter((item) => item.id !== subAdminId))
 
     if (authUser?.role === 'admin' && authUser.id === subAdminId) {
@@ -433,15 +489,36 @@ function App() {
       return null
     }
 
-    const nextShopper = {
-      id: makeId('shopper'),
+    const dbStatus = (payload.status === 'نشط' || payload.status === 'active') ? 'active' : 'inactive'
+
+    const assignedAdminId = activeUser.role === 'admin' ? activeUser.id : null
+
+    const newShopperData = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
       password: payload.password,
       city: payload.city.trim(),
-      visits: 0,
+      visits_completed: 0,
       points: 0,
-      status: payload.status ?? 'نشط',
+      status: dbStatus,
+      assigned_admin_id: assignedAdminId
+    }
+
+    const { data: dbShopper, error } = await supabase
+      .from('shoppers')
+      .insert([newShopperData])
+      .select()
+      .single()
+
+    if (error || !dbShopper) {
+      console.error('Error adding shopper:', error)
+      return null
+    }
+
+    const nextShopper = {
+      ...dbShopper,
+      status: dbShopper.status === 'active' ? 'نشط' : 'غير نشط',
+      visits: dbShopper.visits_completed
     }
 
     setShoppers((previous) => [nextShopper, ...previous])
@@ -458,6 +535,14 @@ function App() {
           }
         }),
       )
+      
+      // Update admin in db too
+      const currentAdmin = subAdmins.find(a => a.id === activeUser.id)
+      if (currentAdmin) {
+        const assigned = new Set(currentAdmin.assignedShopperIds ?? [])
+        assigned.add(nextShopper.id)
+        await supabase.from('admins').update({ assigned_shopper_ids: Array.from(assigned) }).eq('id', activeUser.id)
+      }
     }
 
     return nextShopper
@@ -466,22 +551,35 @@ function App() {
   const updateShopper = async (shopperId, updates) => {
     if (!canManageShopper(shopperId)) return null
 
-    let nextShopper = null
+    let dbUpdates = {}
+    if (updates.name) dbUpdates.name = updates.name.trim()
+    if (updates.email) dbUpdates.email = normalizeEmail(updates.email)
+    if (updates.city) dbUpdates.city = updates.city.trim()
+    if (updates.password) dbUpdates.password = updates.password
+    if (updates.status) {
+      dbUpdates.status = (updates.status === 'نشط' || updates.status === 'active') ? 'active' : 'inactive'
+    }
+
+    const { data: dbShopper, error } = await supabase
+      .from('shoppers')
+      .update(dbUpdates)
+      .eq('id', shopperId)
+      .select()
+      .single()
+
+    if (error || !dbShopper) {
+      console.error('Error updating shopper:', error)
+      return null
+    }
+
+    const nextShopper = {
+      ...dbShopper,
+      status: dbShopper.status === 'active' ? 'نشط' : 'غير نشط',
+      visits: dbShopper.visits_completed
+    }
 
     setShoppers((previous) =>
-      previous.map((item) => {
-        if (item.id !== shopperId) return item
-
-        nextShopper = {
-          ...item,
-          ...updates,
-          email: updates.email ? normalizeEmail(updates.email) : item.email,
-          name: updates.name ? updates.name.trim() : item.name,
-          city: updates.city ? updates.city.trim() : item.city,
-        }
-
-        return nextShopper
-      }),
+      previous.map((item) => (item.id === shopperId ? nextShopper : item))
     )
 
     if (nextShopper && authUser?.role === 'shopper' && authUser.id === shopperId) {
@@ -503,6 +601,12 @@ function App() {
 
   const deleteShopper = async (shopperId) => {
     if (!canManageShopper(shopperId)) return false
+
+    const { error } = await supabase.from('shoppers').delete().eq('id', shopperId)
+    if (error) {
+      console.error('Error deleting shopper:', error)
+      return false
+    }
 
     setShoppers((previous) => previous.filter((item) => item.id !== shopperId))
 
@@ -536,22 +640,41 @@ function App() {
     if (!activeUser || !['superadmin', 'admin'].includes(activeUser.role)) return null
     if (!payload.assignedShopperId || !canManageShopper(payload.assignedShopperId)) return null
 
-    const nextVisit = {
-      id: makeId('visit'),
-      officeName: payload.officeName.trim(),
+    const dbPayload = {
+      office_name: payload.officeName.trim(),
       city: payload.city.trim(),
       type: payload.type ?? 'مكتب مبيعات',
-      date: payload.date,
-      time: payload.time,
       status: payload.status ?? 'معلقة',
-      assignedShopperId: payload.assignedShopperId,
       scenario: payload.scenario?.trim() ?? '',
-      membershipId: payload.membershipId?.trim() || generateMembershipId(),
+      membership_id: payload.membershipId?.trim() || generateMembershipId(),
+      shopper_id: payload.assignedShopperId,
+      visit_date: payload.date ? new Date(`${payload.date}T${payload.time || '00:00'}:00`).toISOString() : new Date().toISOString(),
       scores: payload.scores ?? makeEmptyScores(evaluationCriteria),
       notes: payload.notes ?? '',
-      pointsEarned: payload.pointsEarned ?? 0,
-      waitMinutes: payload.waitMinutes ?? 0,
-      file_urls: Array.isArray(payload.file_urls) ? payload.file_urls : [],
+      points_earned: payload.pointsEarned ?? 0
+    }
+
+    const { data: dbVisit, error } = await supabase.from('visits').insert([dbPayload]).select().single()
+    if (error || !dbVisit) {
+      console.error('Error adding visit:', error)
+      return null
+    }
+
+    const nextVisit = {
+      ...dbVisit,
+      id: dbVisit.id,
+      officeName: dbVisit.office_name,
+      assignedShopperId: dbVisit.shopper_id,
+      membershipId: dbVisit.membership_id,
+      pointsEarned: dbVisit.points_earned,
+      type: dbVisit.type,
+      status: dbVisit.status,
+      scenario: dbVisit.scenario,
+      city: dbVisit.city,
+      notes: dbVisit.notes,
+      scores: dbVisit.scores,
+      waitMinutes: 0,
+      file_urls: payload.file_urls ?? []
     }
 
     setVisits((previous) => [nextVisit, ...previous])
@@ -559,18 +682,38 @@ function App() {
   }
 
   const updateVisit = async (visitId, updates) => {
-    if (!activeUser || !['superadmin', 'admin'].includes(activeUser.role)) return null
+    if (!activeUser || !['superadmin', 'admin', 'shopper'].includes(activeUser.role)) return null
+
+    let dbUpdates = {}
+    if (updates.officeName !== undefined) dbUpdates.office_name = updates.officeName.trim()
+    if (updates.city !== undefined) dbUpdates.city = updates.city.trim()
+    if (updates.type !== undefined) dbUpdates.type = updates.type
+    if (updates.status !== undefined) dbUpdates.status = updates.status
+    if (updates.scenario !== undefined) dbUpdates.scenario = updates.scenario.trim()
+    if (updates.membershipId !== undefined) dbUpdates.membership_id = updates.membershipId.trim()
+    if (updates.scores !== undefined) dbUpdates.scores = updates.scores
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes
+    if (updates.pointsEarned !== undefined) dbUpdates.points_earned = updates.pointsEarned
+
+    const { data: dbVisit, error } = await supabase.from('visits').update(dbUpdates).eq('id', visitId).select().single()
+    if (error || !dbVisit) {
+      console.error('Error updating visit:', error)
+      return null
+    }
 
     let updatedVisit = null
 
     setVisits((previous) =>
       previous.map((visit) => {
         if (visit.id !== visitId) return visit
-        if (!canManageVisit(visit)) return visit
+        if (!canManageVisit(visit) && authUser?.role !== 'shopper') return visit
 
         updatedVisit = {
           ...visit,
           ...updates,
+          officeName: dbVisit.office_name ?? visit.officeName,
+          pointsEarned: dbVisit.points_earned ?? visit.pointsEarned,
+          status: dbVisit.status ?? visit.status
         }
 
         return updatedVisit
@@ -581,33 +724,29 @@ function App() {
   }
 
   const deleteVisit = async (visitId) => {
-    let removedVisit = null
-
-    setVisits((previous) => {
-      const target = previous.find((item) => item.id === visitId)
-      if (!target || !canManageVisit(target)) {
-        return previous
-      }
-
-      removedVisit = target
-      return previous.filter((item) => item.id !== visitId)
-    })
-
-    if (!removedVisit) {
+    const target = visits.find((item) => item.id === visitId)
+    if (!target || (!canManageVisit(target) && activeUser?.role !== 'admin' && activeUser?.role !== 'superadmin')) {
       return false
     }
 
+    const { error } = await supabase.from('visits').delete().eq('id', visitId)
+    if (error) {
+      console.error('Error deleting visit:', error)
+      return false
+    }
+
+    setVisits((previous) => previous.filter((item) => item.id !== visitId))
     setIssues((previous) => previous.filter((issue) => issue.visitId !== visitId))
 
-    if (removedVisit.status === 'مكتملة') {
+    if (target.status === 'مكتملة') {
       setShoppers((previous) =>
         previous.map((shopper) => {
-          if (shopper.id !== removedVisit.assignedShopperId) return shopper
+          if (shopper.id !== target.assignedShopperId) return shopper
 
           return {
             ...shopper,
             visits: Math.max(0, Number(shopper.visits ?? 0) - 1),
-            points: Math.max(0, Number(shopper.points ?? 0) - Number(removedVisit.pointsEarned ?? 0)),
+            points: Math.max(0, Number(shopper.points ?? 0) - Number(target.pointsEarned ?? 0)),
           }
         }),
       )
@@ -619,6 +758,14 @@ function App() {
   const awardShopperPoints = async (shopperId, amount) => {
     if (!canManageShopper(shopperId)) return null
 
+    const targetShopper = shoppers.find(s => s.id === shopperId);
+    if (!targetShopper) return null;
+
+    const newPoints = Math.max(0, Number(targetShopper.points ?? 0) + Number(amount ?? 0));
+    
+    const { data: dbShopper, error } = await supabase.from('shoppers').update({ points: newPoints }).eq('id', shopperId).select().single()
+    if (error || !dbShopper) return null;
+
     let updatedShopper = null
 
     setShoppers((previous) =>
@@ -627,7 +774,7 @@ function App() {
 
         updatedShopper = {
           ...shopper,
-          points: Math.max(0, Number(shopper.points ?? 0) + Number(amount ?? 0)),
+          points: dbShopper.points,
         }
 
         return updatedShopper
@@ -795,8 +942,8 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
-    dataLoading,
-    dataError,
+    dataLoading: dataLoadingValue,
+    dataError: dataErrorValue,
     isLive: true,
     adminHasAssignments: assignedShopperIds.length > 0,
     addShopper,
@@ -820,8 +967,8 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
-    dataLoading,
-    dataError,
+    dataLoading: dataLoadingValue,
+    dataError: dataErrorValue,
     isLive: true,
     addSubAdmin,
     updateSubAdmin,
@@ -847,8 +994,8 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
-    dataLoading,
-    dataError,
+    dataLoading: dataLoadingValue,
+    dataError: dataErrorValue,
     completeVisit,
     updateVisitFiles,
     onLogout: handleLogout,
