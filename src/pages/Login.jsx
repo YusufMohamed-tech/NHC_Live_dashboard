@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
+import BrandLockup from '../components/BrandLockup'
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate()
@@ -122,10 +123,7 @@ export default function Login({ onLogin }) {
 
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <span className="rounded-xl bg-white/20 px-3 py-2 text-sm font-black">NHC</span>
-                <span className="rounded-xl bg-white/20 px-3 py-2 text-sm font-black">Chessboard</span>
-              </div>
+              <BrandLockup light />
 
               <div>
                 <p className="text-sm font-semibold text-white/80">منصة قياس تجربة العملاء</p>
