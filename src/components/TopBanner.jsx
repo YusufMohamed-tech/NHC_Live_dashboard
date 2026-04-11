@@ -50,7 +50,7 @@ export default function TopBanner() {
         }
 
         .saas-brand-logo {
-          height: 36px;
+          height: 64px;
           width: auto;
           object-fit: contain;
           filter: grayscale(1) invert(1);
@@ -63,13 +63,13 @@ export default function TopBanner() {
         @media (min-width: 640px) {
           .saas-branding-pill {
             flex-direction: row;
-            gap: 24px;
-            padding: 12px 32px;
+            gap: 32px;
+            padding: 16px 40px;
           }
         }
 
         .saas-divider {
-          width: 32px;
+          width: 48px;
           height: 1px;
           background: rgba(255, 255, 255, 0.2);
         }
@@ -77,15 +77,15 @@ export default function TopBanner() {
         @media (min-width: 640px) {
           .saas-divider {
             width: 1px;
-            height: 24px;
+            height: 48px;
           }
         }
 
         .saas-powered-text {
           font-family: 'Inter', 'Poppins', sans-serif;
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 500;
-          letter-spacing: 0.6px;
+          letter-spacing: 0.8px;
           color: rgba(255, 255, 255, 0.65);
           white-space: nowrap;
           text-transform: none;
