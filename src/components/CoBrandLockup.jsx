@@ -27,7 +27,7 @@ export default function CoBrandLockup({
           <span className="co-brand-connector" />
         </div>
 
-        <div className="text-right">
+        <div className="co-brand-chess-stack">
           <img src="/branding/chessboard-logo.jpeg" alt="Chessboard" className="co-brand-logo-chess" />
           <p className="co-brand-powered">Powered by Chessboard</p>
         </div>

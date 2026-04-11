@@ -49,6 +49,9 @@
     align-items: center;
     padding: 16px 24px;
     background: transparent;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .co-brand-row {
@@ -62,12 +65,22 @@
     height: 44px;
     width: auto;
     object-fit: contain;
+    background: transparent !important;
   }
 
   .co-brand-logo-chess {
     height: 32px;
     width: auto;
     object-fit: contain;
+    background: transparent !important;
+  }
+
+  .co-brand-chess-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   .co-brand-connector-stack {
@@ -86,6 +99,7 @@
       var(--co-brand-nhc-green) 0%,
       var(--co-brand-chess-lime) 100%
     );
+    border-radius: 2px;
   }
 
   .co-brand-print-tagline {
@@ -106,22 +120,50 @@
   }
 
   .co-brand-light .co-brand-connector {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.8) 100%);
+    width: 56px;
+    height: 3px;
+    margin: 0 16px;
+    border-radius: 2px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.9), rgba(168, 201, 58, 0.7));
   }
 
   .co-brand-light .co-brand-powered {
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.65);
   }
 
   .co-brand-light .co-brand-logo-nhc,
   .co-brand-light .co-brand-logo-chess {
-    filter: none;
+    filter: brightness(0) invert(1);
+    background: transparent !important;
+  }
+
+  .co-brand-light .co-brand-logo-nhc {
+    height: 52px;
+  }
+
+  .co-brand-light .co-brand-logo-chess {
+    height: 30px;
+  }
+
+  .co-brand-light {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .co-brand-login-animated .co-brand-connector {
     width: 0;
     opacity: 0;
     animation: coBrandBridgeDraw 600ms ease-out 300ms forwards;
+  }
+
+  .co-brand-light.co-brand-login-animated .co-brand-connector {
+    animation: coBrandBridgeDrawLight 600ms ease-out 300ms forwards;
   }
 
   .co-brand-sidebar-container {
@@ -161,6 +203,18 @@
 
     to {
       width: 48px;
+      opacity: 1;
+    }
+  }
+
+  @keyframes coBrandBridgeDrawLight {
+    from {
+      width: 0;
+      opacity: 0;
+    }
+
+    to {
+      width: 56px;
       opacity: 1;
     }
   }
