@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import {
   evaluationCriteria,
@@ -9,6 +9,65 @@ import {
   subAdmins as initialSubAdmins,
   visits as initialVisits,
 } from './data/mockData'
+import { supabase } from './lib/supabase'
+
+function usePersistentState(key, initialValue) {
+  // 1. LocalStorage initial sync to prevent UI flickering
+  const [state, setState] = useState(() => {
+    try {
+      const item = window.localStorage.getItem(key)
+      return item ? JSON.parse(item) : initialValue
+    } catch {
+      return initialValue
+    }
+  })
+
+  // 2. Fetch fresh data from Supabase once on mount
+  useEffect(() => {
+    let active = true
+    async function fetchFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('app_state')
+          .select('data')
+          .eq('id', key)
+          .single()
+
+        if (!error && data?.data && active) {
+          setState(data.data) // Override local storage immediately if Supabase has data
+        }
+      } catch (err) {
+        console.warn(`Supabase load error for ${key}:`, err.message)
+      }
+    }
+    fetchFromSupabase()
+    
+    return () => {
+      active = false
+    }
+  }, [key])
+
+  // 3. Sync to both LocalStorage and Supabase automatically on any change
+  useEffect(() => {
+    // Save to local storage for instant continuity (backup)
+    window.localStorage.setItem(key, JSON.stringify(state))
+
+    // Save to Supabase (Debounced 800ms to avoid slamming API on typings)
+    const timeoutId = setTimeout(async () => {
+      try {
+        await supabase
+          .from('app_state')
+          .upsert({ id: key, data: state })
+      } catch (err) {
+        console.warn(`Supabase save error for ${key}:`, err.message)
+      }
+    }, 800)
+
+    return () => clearTimeout(timeoutId)
+  }, [key, state])
+
+  return [state, setState]
+}
 import Login from './pages/Login'
 import AdminLayout from './pages/admin/AdminLayout'
 import Overview from './pages/admin/Overview'
