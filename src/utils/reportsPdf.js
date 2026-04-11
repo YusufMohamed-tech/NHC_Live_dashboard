@@ -23,59 +23,14 @@ async function imageToDataUrl(path) {
 }
 
 async function loadReportBrandingAssets() {
-  const [nhcLogo, chessLogo] = await Promise.all([
-    imageToDataUrl('/branding/nhc-logo.png'),
-    imageToDataUrl('/branding/chessboard-logo.jpeg'),
-  ])
-
-  return { nhcLogo, chessLogo }
+  return { nhcLogo: null, chessLogo: null }
 }
 
 function drawGradientConnector(doc, startX, startY, width = 48) {
-  for (let index = 0; index < width; index += 1) {
-    const ratio = index / width
-    const red = Math.round(NHC_GREEN[0] + (CHESS_LIME[0] - NHC_GREEN[0]) * ratio)
-    const green = Math.round(NHC_GREEN[1] + (CHESS_LIME[1] - NHC_GREEN[1]) * ratio)
-    const blue = Math.round(NHC_GREEN[2] + (CHESS_LIME[2] - NHC_GREEN[2]) * ratio)
-
-    doc.setDrawColor(red, green, blue)
-    doc.line(startX + index, startY, startX + index + 1, startY)
-  }
+  // Empty, no longer in use
 }
 
 function drawPdfReportHeader(doc, assets, { pageWidth, y = 18 }) {
-  const nhcX = 34
-  const nhcY = y
-  const nhcWidth = 44
-  const nhcHeight = 44
-
-  const connectorX = nhcX + nhcWidth + 10
-  const connectorY = nhcY + 23
-
-  const chessX = connectorX + 58
-  const chessY = nhcY + 6
-  const chessWidth = 102
-  const chessHeight = 32
-
-  if (assets.nhcLogo) {
-    doc.addImage(assets.nhcLogo, 'PNG', nhcX, nhcY, nhcWidth, nhcHeight)
-  }
-
-  doc.setTextColor(107, 114, 128)
-  doc.setFontSize(9)
-  doc.text('في شراكة مع', connectorX + 24, nhcY + 10, { align: 'center' })
-  drawGradientConnector(doc, connectorX, connectorY, 48)
-
-  if (assets.chessLogo) {
-    doc.addImage(assets.chessLogo, 'JPEG', chessX, chessY, chessWidth, chessHeight)
-  }
-
-  doc.setTextColor(107, 114, 128)
-  doc.setFontSize(8)
-  doc.text('POWERED BY CHESSBOARD', chessX + chessWidth / 2, chessY + chessHeight + 10, {
-    align: 'center',
-  })
-
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(11)
   doc.text('NHC — برنامج المتحري الخفي', pageWidth - 24, y + 15, { align: 'right' })

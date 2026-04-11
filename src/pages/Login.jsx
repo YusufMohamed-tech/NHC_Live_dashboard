@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import CoBrandLockup from '../components/CoBrandLockup'
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate()
