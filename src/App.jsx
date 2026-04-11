@@ -214,6 +214,63 @@ function App() {
     }
   }, [])
 
+  // 2. Setup Realtime Sync
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'admins' },
+        () => {
+           // Optionally refetch data smoothly
+           // To keep UI perfectly synced without heavy logic:
+           // (For true scale, one would dispatch reducers here, but fetching is fast)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shoppers' },
+        (payload) => {
+           if (payload.eventType === 'INSERT') {
+              setShoppers(prev => [...prev, {...payload.new, status: payload.new.status === 'active' ? 'نشط' : 'غير نشط', visits: payload.new.visits_completed}])
+           } else if (payload.eventType === 'UPDATE') {
+              setShoppers(prev => prev.map(s => s.id === payload.new.id ? {...payload.new, status: payload.new.status === 'active' ? 'نشط' : 'غير نشط', visits: payload.new.visits_completed} : s))
+           } else if (payload.eventType === 'DELETE') {
+              setShoppers(prev => prev.filter(s => s.id !== payload.old.id))
+           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'visits' },
+        (payload) => {
+           if (payload.eventType === 'INSERT') {
+              setVisits(prev => [...prev, {...payload.new, 
+                officeName: payload.new.office_name, 
+                assignedShopperId: payload.new.shopper_id, 
+                membershipId: payload.new.membership_id, 
+                pointsEarned: payload.new.points_earned, 
+                file_urls: payload.new.file_urls || []}])
+           } else if (payload.eventType === 'UPDATE') {
+              setVisits(prev => prev.map(v => v.id === payload.new.id ? {
+                ...payload.new, 
+                officeName: payload.new.office_name, 
+                assignedShopperId: payload.new.shopper_id, 
+                membershipId: payload.new.membership_id, 
+                pointsEarned: payload.new.points_earned, 
+                file_urls: payload.new.file_urls || []} : v))
+           } else if (payload.eventType === 'DELETE') {
+              setVisits(prev => prev.filter(v => v.id !== payload.old.id))
+           }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const [authUser, setAuthUser] = useState(() => {
     try {
       const saved = localStorage.getItem(AUTH_STORAGE_KEY)
@@ -651,7 +708,8 @@ function App() {
       visit_date: payload.date ? new Date(`${payload.date}T${payload.time || '00:00'}:00`).toISOString() : new Date().toISOString(),
       scores: payload.scores ?? makeEmptyScores(evaluationCriteria),
       notes: payload.notes ?? '',
-      points_earned: payload.pointsEarned ?? 0
+      points_earned: payload.pointsEarned ?? 0,
+      file_urls: payload.file_urls ?? []
     }
 
     const { data: dbVisit, error } = await supabase.from('visits').insert([dbPayload]).select().single()
