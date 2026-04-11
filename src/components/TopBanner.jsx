@@ -35,7 +35,7 @@ export default function TopBanner() {
           <img
             src="/branding/chessboard-logo.jpeg"
             alt="Chessboard Partner"
-            className="h-6 sm:h-7 w-auto opacity-90 transition-opacity hover:opacity-100 drop-shadow-lg"
+            className="h-10 sm:h-12 w-auto opacity-90 transition-opacity hover:opacity-100 drop-shadow-lg"
             style={{ filter: 'grayscale(1) invert(1)', mixBlendMode: 'screen' }}
           />
         </div>
