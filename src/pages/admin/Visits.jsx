@@ -16,10 +16,6 @@ import StatusBadge from '../../components/StatusBadge'
 
 const filters = ['الكل', 'معلقة', 'قادمة', 'مكتملة']
 
-function generateMembershipId() {
-  return `NHC-${Math.floor(10000 + Math.random() * 90000)}`
-}
-
 function getInitialVisit(shopperId = '') {
   return {
     officeName: '',
@@ -30,7 +26,6 @@ function getInitialVisit(shopperId = '') {
     time: '10:00 صباحاً',
     assignedShopperId: shopperId,
     scenario: '',
-    membershipId: generateMembershipId(),
   }
 }
 
@@ -90,7 +85,6 @@ export default function Visits() {
       status: newVisit.status,
       assignedShopperId: newVisit.assignedShopperId,
       scenario: newVisit.scenario,
-      membershipId: newVisit.membershipId,
     })
 
     setNewVisit(
@@ -118,7 +112,6 @@ export default function Visits() {
       time: editingVisit.time,
       assignedShopperId: editingVisit.assignedShopperId,
       scenario: editingVisit.scenario,
-      membershipId: editingVisit.membershipId,
     })
 
     setEditingVisit(null)
@@ -256,10 +249,7 @@ export default function Visits() {
                 {visit.scenario || 'بدون سيناريو'}
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span className="rounded-lg bg-indigo-50 px-2 py-1 font-semibold text-indigo-700">
-                  {visit.membershipId}
-                </span>
+              <div className="mt-3 text-sm">
                 <span className="text-slate-500">
                   المتسوق: {shopper ? shopper.name : 'غير معين'}
                 </span>
@@ -439,20 +429,6 @@ export default function Visits() {
                   }
                   rows={3}
                   className="w-full rounded-xl border border-slate-300 bg-white p-3 outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                <span>رقم العضوية</span>
-                <input
-                  value={newVisit.membershipId}
-                  onChange={(event) =>
-                    setNewVisit((previous) => ({
-                      ...previous,
-                      membershipId: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
                 />
               </label>
 

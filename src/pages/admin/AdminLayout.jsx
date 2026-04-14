@@ -3,7 +3,6 @@ import {
   BarChart3,
   LayoutDashboard,
   ScanSearch,
-  Users,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import Footer from '../../components/Footer'
@@ -11,14 +10,12 @@ import Navbar from '../../components/Navbar'
 
 const adminTabs = [
   { label: 'نظرة عامة', to: '/admin/overview', icon: LayoutDashboard },
-  { label: 'المتسوقون', to: '/admin/shoppers', icon: Users },
   { label: 'الزيارات', to: '/admin/visits', icon: ScanSearch },
   { label: 'التقارير', to: '/admin/reports', icon: BarChart3 },
   { label: 'النقاط', to: '/admin/points', icon: Activity },
 ]
 
 function getTitle(pathname) {
-  if (pathname.includes('/admin/shoppers')) return 'إدارة المتسوقين'
   if (pathname.includes('/admin/visits')) return 'إدارة الزيارات'
   if (pathname.includes('/admin/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/admin/points')) return 'إدارة النقاط'

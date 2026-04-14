@@ -1,4 +1,4 @@
-import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
+import { Pencil, Plus, Search, ShieldCheck, Trash2, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
@@ -11,6 +11,14 @@ const initialFormState = {
   city: '',
   status: 'نشط',
   assignedShopperIds: [],
+}
+
+const initialSuperAdminFormState = {
+  name: '',
+  email: '',
+  password: '',
+  city: '',
+  status: 'نشط',
 }
 
 function normalizeEmail(value) {
@@ -48,8 +56,14 @@ function ShopperAssignments({ shoppers, selectedIds, onToggle }) {
 
 export default function ManageAdmins() {
   const {
+    user,
+    canManageSuperAdmins,
+    superAdmins,
     subAdmins,
     shoppers,
+    addSuperAdmin,
+    updateSuperAdmin,
+    deleteSuperAdmin,
     addSubAdmin,
     updateSubAdmin,
     deleteSubAdmin,
@@ -64,8 +78,18 @@ export default function ManageAdmins() {
   const [assigningAdmin, setAssigningAdmin] = useState(null)
   const [form, setForm] = useState(initialFormState)
   const [assignmentsDraft, setAssignmentsDraft] = useState([])
+  const [isAddSuperAdminModalOpen, setIsAddSuperAdminModalOpen] = useState(false)
+  const [editingSuperAdmin, setEditingSuperAdmin] = useState(null)
+  const [superAdminForm, setSuperAdminForm] = useState(initialSuperAdminFormState)
 
   const debouncedQuery = useDebouncedValue(query, 300)
+
+  const filteredSuperAdmins = useMemo(() => {
+    return superAdmins.filter((admin) => {
+      const target = `${admin.name} ${admin.email} ${admin.city}`
+      return target.toLowerCase().includes(debouncedQuery.toLowerCase())
+    })
+  }, [debouncedQuery, superAdmins])
 
   const filteredSubAdmins = useMemo(() => {
     return subAdmins.filter((admin) => {
@@ -73,6 +97,23 @@ export default function ManageAdmins() {
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, subAdmins])
+
+  const isEmailUsed = (email, excludeId = null) => {
+    const normalized = normalizeEmail(email)
+    if (!normalized) return false
+
+    if (
+      user?.id === 'superadmin-root' &&
+      normalizeEmail(user.email) === normalized &&
+      user.id !== excludeId
+    ) {
+      return true
+    }
+
+    return [...superAdmins, ...subAdmins].some(
+      (admin) => admin.id !== excludeId && normalizeEmail(admin.email) === normalized,
+    )
+  }
 
   const toggleAssignment = (shopperId) => {
     setForm((previous) => {
@@ -102,10 +143,20 @@ export default function ManageAdmins() {
     setForm(initialFormState)
   }
 
+  const resetSuperAdminForm = () => {
+    setSuperAdminForm(initialSuperAdminFormState)
+  }
+
   const handleOpenAddModal = () => {
     resetForm()
     setEditingAdmin(null)
     setIsAddModalOpen(true)
+  }
+
+  const handleOpenAddSuperAdminModal = () => {
+    resetSuperAdminForm()
+    setEditingSuperAdmin(null)
+    setIsAddSuperAdminModalOpen(true)
   }
 
   const handleOpenEditModal = (admin) => {
@@ -121,6 +172,18 @@ export default function ManageAdmins() {
     setIsAddModalOpen(false)
   }
 
+  const handleOpenEditSuperAdminModal = (admin) => {
+    setEditingSuperAdmin(admin)
+    setSuperAdminForm({
+      name: admin.name,
+      email: admin.email,
+      password: admin.password,
+      city: admin.city,
+      status: admin.status,
+    })
+    setIsAddSuperAdminModalOpen(false)
+  }
+
   const handleOpenAssignModal = (admin) => {
     setAssigningAdmin(admin)
     setAssignmentsDraft(admin.assignedShopperIds ?? [])
@@ -129,11 +192,7 @@ export default function ManageAdmins() {
   const handleCreateSubAdmin = async (event) => {
     event.preventDefault()
 
-    const isDuplicated = subAdmins.some(
-      (admin) => normalizeEmail(admin.email) === normalizeEmail(form.email),
-    )
-
-    if (isDuplicated) {
+    if (isEmailUsed(form.email)) {
       window.alert('البريد الإلكتروني مستخدم بالفعل.')
       return
     }
@@ -143,13 +202,50 @@ export default function ManageAdmins() {
     resetForm()
   }
 
+  const handleCreateSuperAdmin = async (event) => {
+    event.preventDefault()
+
+    if (!canManageSuperAdmins) {
+      window.alert('إنشاء مدير عام جديد متاح فقط للمدير العام الرئيسي.')
+      return
+    }
+
+    if (isEmailUsed(superAdminForm.email)) {
+      window.alert('البريد الإلكتروني مستخدم بالفعل.')
+      return
+    }
+
+    await addSuperAdmin(superAdminForm)
+    setIsAddSuperAdminModalOpen(false)
+    resetSuperAdminForm()
+  }
+
   const handleSaveEdit = async (event) => {
     event.preventDefault()
     if (!editingAdmin) return
 
+    if (isEmailUsed(form.email, editingAdmin.id)) {
+      window.alert('البريد الإلكتروني مستخدم بالفعل.')
+      return
+    }
+
     await updateSubAdmin(editingAdmin.id, form)
     setEditingAdmin(null)
     resetForm()
+  }
+
+  const handleSaveSuperAdminEdit = async (event) => {
+    event.preventDefault()
+    if (!editingSuperAdmin || !canManageSuperAdmins) return
+
+    if (isEmailUsed(superAdminForm.email, editingSuperAdmin.id)) {
+      window.alert('البريد الإلكتروني مستخدم بالفعل.')
+      return
+    }
+
+    await updateSuperAdmin(editingSuperAdmin.id, superAdminForm)
+    setEditingSuperAdmin(null)
+    resetSuperAdminForm()
   }
 
   const handleDeleteAdmin = async (adminId) => {
@@ -157,6 +253,18 @@ export default function ManageAdmins() {
     if (!confirmed) return
 
     await deleteSubAdmin(adminId)
+  }
+
+  const handleDeleteSuperAdmin = async (adminId) => {
+    if (!canManageSuperAdmins) return
+
+    const target = superAdmins.find((admin) => admin.id === adminId)
+    if (!target) return
+
+    const confirmed = window.confirm(`هل أنت متأكد من حذف المدير العام ${target.name}؟`)
+    if (!confirmed) return
+
+    await deleteSuperAdmin(adminId)
   }
 
   const handleSaveAssignments = async () => {
@@ -181,17 +289,32 @@ export default function ManageAdmins() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
             <h2 className="font-display text-2xl font-black text-slate-900">إدارة المديرين</h2>
-            <p className="text-sm text-slate-500">إضافة وتعديل وتوزيع المتسوقين على المديرين</p>
+            <p className="text-sm text-slate-500">
+              إدارة المديرين العامين والفرعيين وتوزيع المتسوقين على المديرين الفرعيين
+            </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenAddModal}
-            className="ms-auto inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" />
-            إضافة مدير
-          </button>
+          <div className="ms-auto flex flex-wrap items-center gap-2">
+            {canManageSuperAdmins && (
+              <button
+                type="button"
+                onClick={handleOpenAddSuperAdminModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-900"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                إضافة مدير عام
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleOpenAddModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" />
+              إضافة مدير فرعي
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 relative">
@@ -206,12 +329,104 @@ export default function ManageAdmins() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h3 className="flex items-center gap-2 text-sm font-black text-slate-800">
+            <ShieldCheck className="h-4 w-4" />
+            المديرون العامون
+          </h3>
+          <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
+            {filteredSuperAdmins.length}
+          </span>
+        </div>
+
+        {filteredSuperAdmins.length === 0 ? (
+          <div className="p-4">
+            <EmptyState
+              icon={ShieldCheck}
+              message="لا يوجد مديرون عامون إضافيون بعد"
+              actionLabel={canManageSuperAdmins ? 'إضافة مدير عام' : undefined}
+              onAction={canManageSuperAdmins ? handleOpenAddSuperAdminModal : undefined}
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="px-4 py-3 text-start font-black">الاسم</th>
+                  <th className="px-4 py-3 text-start font-black">البريد</th>
+                  <th className="px-4 py-3 text-start font-black">المدينة</th>
+                  <th className="px-4 py-3 text-start font-black">الحالة</th>
+                  <th className="px-4 py-3 text-start font-black">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSuperAdmins.map((admin, index) => (
+                  <tr
+                    key={admin.id}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-slate-100/60`}
+                  >
+                    <td className="px-4 py-3 font-bold text-slate-900">{admin.name}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.email}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.city}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          admin.status === 'نشط'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {admin.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {canManageSuperAdmins ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditSuperAdminModal(admin)}
+                            className="rounded-lg border border-slate-300 p-2 text-slate-600 transition hover:bg-slate-100"
+                            title="تعديل"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSuperAdmin(admin.id)}
+                            disabled={admin.id === user?.id}
+                            className="rounded-lg border border-rose-300 p-2 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="حذف"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-500">عرض فقط</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h3 className="text-sm font-black text-slate-800">المديرون الفرعيون</h3>
+          <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+            {filteredSubAdmins.length}
+          </span>
+        </div>
+
         {filteredSubAdmins.length === 0 ? (
           <div className="p-4">
             <EmptyState
               icon={Users}
               message="لا يوجد مديرون بعد"
-              actionLabel="إضافة مدير"
+              actionLabel="إضافة مدير فرعي"
               onAction={handleOpenAddModal}
             />
           </div>
@@ -298,11 +513,184 @@ export default function ManageAdmins() {
         )}
       </section>
 
+      {isAddSuperAdminModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير عام</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddSuperAdminModalOpen(false)}
+                className="rounded-lg border border-slate-300 p-1.5 text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSuperAdmin} className="mt-4 space-y-3">
+              <input
+                required
+                value={superAdminForm.name}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="الاسم الكامل"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={superAdminForm.email}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, email: event.target.value }))
+                }
+                placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="password"
+                value={superAdminForm.password}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, password: event.target.value }))
+                }
+                placeholder="كلمة المرور"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={superAdminForm.city}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, city: event.target.value }))
+                }
+                placeholder="المدينة"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-sm font-semibold text-slate-700">الحالة</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSuperAdminForm((prev) => ({
+                      ...prev,
+                      status: prev.status === 'نشط' ? 'غير نشط' : 'نشط',
+                    }))
+                  }
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    superAdminForm.status === 'نشط'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {superAdminForm.status}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="h-11 w-full rounded-xl bg-slate-800 text-sm font-bold text-white transition hover:bg-slate-900"
+              >
+                إضافة مدير عام
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingSuperAdmin && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-xl font-black text-slate-900">تعديل مدير عام</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSuperAdmin(null)
+                  resetSuperAdminForm()
+                }}
+                className="rounded-lg border border-slate-300 p-1.5 text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSuperAdminEdit} className="mt-4 space-y-3">
+              <input
+                required
+                value={superAdminForm.name}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="الاسم الكامل"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={superAdminForm.email}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, email: event.target.value }))
+                }
+                placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="password"
+                value={superAdminForm.password}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, password: event.target.value }))
+                }
+                placeholder="كلمة المرور"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={superAdminForm.city}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, city: event.target.value }))
+                }
+                placeholder="المدينة"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-sm font-semibold text-slate-700">الحالة</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSuperAdminForm((prev) => ({
+                      ...prev,
+                      status: prev.status === 'نشط' ? 'غير نشط' : 'نشط',
+                    }))
+                  }
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    superAdminForm.status === 'نشط'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {superAdminForm.status}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="h-11 w-full rounded-xl bg-slate-800 text-sm font-bold text-white transition hover:bg-slate-900"
+              >
+                حفظ التعديلات
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isAddModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير فرعي</h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
@@ -379,7 +767,7 @@ export default function ManageAdmins() {
                 type="submit"
                 className="h-11 w-full rounded-xl bg-indigo-600 text-sm font-bold text-white transition hover:bg-indigo-700"
               >
-                إضافة مدير
+                إضافة مدير فرعي
               </button>
             </form>
           </div>

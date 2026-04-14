@@ -87,6 +87,10 @@ function generateMembershipId() {
   return `NHC-${Math.floor(10000 + Math.random() * 90000)}`
 }
 
+function isRootSuperAdmin(user) {
+  return user?.role === 'superadmin' && user.id === SUPER_ADMIN_ACCOUNT.id
+}
+
 function parseVisitDateTime(date, time) {
   const dateValue = String(date ?? '').trim()
   if (!dateValue) return new Date().toISOString()
@@ -407,6 +411,7 @@ function ProtectedRoute({ user, allowedRole, children }) {
 
 function App() {
   const [subAdmins, setSubAdmins] = useState([])
+  const [superAdmins, setSuperAdmins] = useState([])
   const [shoppers, setShoppers] = useState([])
   const [visits, setVisits] = useState([])
   const [issues, setIssues] = useState([])
@@ -457,15 +462,18 @@ function App() {
         if (pointsError) throw pointsError
 
         if (mounted) {
-          const mappedAdmins = (adminsData ?? [])
-            .map(mapAdminRow)
-            .filter((admin) => admin.role === 'admin')
+          const mappedAdmins = (adminsData ?? []).map(mapAdminRow)
+          const mappedSubAdmins = mappedAdmins.filter((admin) => admin.role === 'admin')
+          const mappedSuperAdmins = mappedAdmins.filter(
+            (admin) => admin.role === 'superadmin',
+          )
           const mappedShoppers = (shoppersData ?? []).map(mapShopperRow)
           const mappedVisits = (visitsData ?? []).map(mapVisitRow)
           const mappedIssues = (issuesData ?? []).map(mapIssueRow)
           const mappedOffices = (officesData ?? []).map(mapOfficeRow)
 
-          setSubAdmins(mappedAdmins)
+          setSubAdmins(mappedSubAdmins)
+          setSuperAdmins(mappedSuperAdmins)
           setShoppers(mappedShoppers)
           setVisits(mappedVisits)
           setIssues(mappedIssues)
@@ -499,20 +507,41 @@ function App() {
         (payload) => {
           if (payload.eventType === 'DELETE') {
             setSubAdmins((previous) => previous.filter((admin) => admin.id !== payload.old.id))
+            setSuperAdmins((previous) => previous.filter((admin) => admin.id !== payload.old.id))
             return
           }
 
           const mappedAdmin = mapAdminRow(payload.new)
-          if (mappedAdmin.role !== 'admin') return
+          if (mappedAdmin.role === 'admin') {
+            setSubAdmins((previous) => {
+              const exists = previous.some((admin) => admin.id === mappedAdmin.id)
+              if (!exists) return [mappedAdmin, ...previous]
 
-          setSubAdmins((previous) => {
-            const exists = previous.some((admin) => admin.id === mappedAdmin.id)
-            if (!exists) return [mappedAdmin, ...previous]
-
-            return previous.map((admin) =>
-              admin.id === mappedAdmin.id ? mappedAdmin : admin,
+              return previous.map((admin) =>
+                admin.id === mappedAdmin.id ? mappedAdmin : admin,
+              )
+            })
+            setSuperAdmins((previous) =>
+              previous.filter((admin) => admin.id !== mappedAdmin.id),
             )
-          })
+            return
+          }
+
+          if (mappedAdmin.role === 'superadmin') {
+            setSuperAdmins((previous) => {
+              const exists = previous.some((admin) => admin.id === mappedAdmin.id)
+              if (!exists) return [mappedAdmin, ...previous]
+
+              return previous.map((admin) =>
+                admin.id === mappedAdmin.id ? mappedAdmin : admin,
+              )
+            })
+            setSubAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+            return
+          }
+
+          setSubAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+          setSuperAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
         },
       )
       .on(
@@ -600,9 +629,27 @@ function App() {
     if (!authUser) return null
 
     if (authUser.role === 'superadmin') {
+      if (isRootSuperAdmin(authUser)) {
+        return {
+          ...authUser,
+          role: 'superadmin',
+          isRootSuperAdmin: true,
+        }
+      }
+
+      const superAdmin = superAdmins.find(
+        (item) => item.id === authUser.id || normalizeEmail(item.email) === normalizeEmail(authUser.email),
+      )
+
+      if (!superAdmin || superAdmin.status !== 'نشط') {
+        return null
+      }
+
       return {
         ...authUser,
+        ...superAdmin,
         role: 'superadmin',
+        isRootSuperAdmin: false,
       }
     }
 
@@ -640,7 +687,7 @@ function App() {
     }
 
     return null
-  }, [authUser, shoppers, subAdmins])
+  }, [authUser, shoppers, subAdmins, superAdmins])
 
   const issuesWithVisitMeta = useMemo(() => {
     const visitsMap = new Map(visits.map((visit) => [visit.id, visit]))
@@ -737,6 +784,26 @@ function App() {
       return payload
     }
 
+    const managedSuperAdmin = superAdmins.find(
+      (item) =>
+        normalizeEmail(item.email) === normalizedEmail &&
+        item.password === password &&
+        item.status === 'نشط',
+    )
+
+    if (managedSuperAdmin) {
+      const payload = {
+        id: managedSuperAdmin.id,
+        name: managedSuperAdmin.name,
+        email: managedSuperAdmin.email,
+        role: 'superadmin',
+      }
+
+      setAuthUser(payload)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      return payload
+    }
+
     const subAdmin = subAdmins.find(
       (item) =>
         normalizeEmail(item.email) === normalizedEmail &&
@@ -784,6 +851,106 @@ function App() {
   const handleLogout = () => {
     setAuthUser(null)
     localStorage.removeItem(AUTH_STORAGE_KEY)
+  }
+
+  const canManageSuperAdmins = isRootSuperAdmin(activeUser)
+
+  const addSuperAdmin = async (payload) => {
+    if (!canManageSuperAdmins) return null
+
+    const insertPayload = {
+      name: payload.name.trim(),
+      email: normalizeEmail(payload.email),
+      password: payload.password,
+      city: payload.city.trim(),
+      status: toDbUserStatus(payload.status),
+      role: 'superadmin',
+      assigned_shopper_ids: [],
+    }
+
+    const { data: insertedAdmin, error } = await supabase
+      .from('admins')
+      .insert([insertPayload])
+      .select('*')
+      .single()
+
+    if (error || !insertedAdmin) {
+      console.error('Error adding super admin:', error)
+      return null
+    }
+
+    const nextSuperAdmin = mapAdminRow(insertedAdmin)
+
+    setSuperAdmins((previous) => [nextSuperAdmin, ...previous])
+    return nextSuperAdmin
+  }
+
+  const updateSuperAdmin = async (superAdminId, updates) => {
+    if (!canManageSuperAdmins) return null
+
+    const currentAdmin = superAdmins.find((admin) => admin.id === superAdminId)
+    if (!currentAdmin) return null
+
+    const dbUpdates = {
+      name: updates.name ? updates.name.trim() : currentAdmin.name,
+      email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
+      password: updates.password ?? currentAdmin.password,
+      city: updates.city ? updates.city.trim() : currentAdmin.city,
+      status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
+    }
+
+    const { data: updatedAdminRow, error } = await supabase
+      .from('admins')
+      .update(dbUpdates)
+      .eq('id', superAdminId)
+      .select('*')
+      .single()
+
+    if (error || !updatedAdminRow) {
+      console.error('Error updating super admin:', error)
+      return null
+    }
+
+    const updatedItem = mapAdminRow(updatedAdminRow)
+
+    setSuperAdmins((previous) =>
+      previous.map((item) => (item.id === superAdminId ? updatedItem : item)),
+    )
+
+    if (updatedItem && authUser?.role === 'superadmin' && authUser.id === superAdminId) {
+      const refreshedAuth = {
+        ...authUser,
+        ...updatedItem,
+        role: 'superadmin',
+      }
+      setAuthUser(refreshedAuth)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedAuth))
+    }
+
+    return updatedItem
+  }
+
+  const deleteSuperAdmin = async (superAdminId) => {
+    if (!canManageSuperAdmins || superAdminId === SUPER_ADMIN_ACCOUNT.id) return false
+
+    const { error } = await supabase
+      .from('admins')
+      .delete()
+      .eq('id', superAdminId)
+      .eq('role', 'superadmin')
+
+    if (error) {
+      console.error('Error deleting super admin:', error)
+      return false
+    }
+
+    setSuperAdmins((previous) => previous.filter((item) => item.id !== superAdminId))
+
+    if (authUser?.role === 'superadmin' && authUser.id === superAdminId) {
+      handleLogout()
+    }
+
+    return true
   }
 
   const addSubAdmin = async (payload) => {
@@ -897,13 +1064,11 @@ function App() {
   }
 
   const addShopper = async (payload) => {
-    if (!activeUser || !['superadmin', 'admin'].includes(activeUser.role)) {
+    if (activeUser?.role !== 'superadmin') {
       return null
     }
 
     const dbStatus = toDbUserStatus(payload.status)
-
-    const assignedAdminId = activeUser.role === 'admin' ? activeUser.id : null
 
     const newShopperData = {
       name: payload.name.trim(),
@@ -913,7 +1078,7 @@ function App() {
       visits_completed: 0,
       points: 0,
       status: dbStatus,
-      assigned_admin_id: assignedAdminId,
+      assigned_admin_id: null,
     }
 
     const { data: dbShopper, error } = await supabase
@@ -930,35 +1095,6 @@ function App() {
     const nextShopper = mapShopperRow(dbShopper)
 
     setShoppers((previous) => [nextShopper, ...previous])
-
-    if (activeUser.role === 'admin') {
-      setSubAdmins((previous) =>
-        previous.map((item) => {
-          if (item.id !== activeUser.id) return item
-          const assigned = new Set(item.assignedShopperIds ?? [])
-          assigned.add(nextShopper.id)
-          return {
-            ...item,
-            assignedShopperIds: Array.from(assigned),
-          }
-        }),
-      )
-      
-      // Update admin in db too
-      const currentAdmin = subAdmins.find(a => a.id === activeUser.id)
-      if (currentAdmin) {
-        const assigned = new Set(currentAdmin.assignedShopperIds ?? [])
-        assigned.add(nextShopper.id)
-        const { error: adminSyncError } = await supabase
-          .from('admins')
-          .update({ assigned_shopper_ids: Array.from(assigned) })
-          .eq('id', activeUser.id)
-
-        if (adminSyncError) {
-          console.warn('تعذر مزامنة تعيينات المدير بعد إضافة المتسوق', adminSyncError.message)
-        }
-      }
-    }
 
     return nextShopper
   }
@@ -1465,6 +1601,7 @@ function App() {
 
   const superAdminScopeProps = {
     user: activeUser,
+    superAdmins,
     subAdmins,
     shoppers,
     visits: visitsWithIssues,
@@ -1475,6 +1612,10 @@ function App() {
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
+    canManageSuperAdmins,
+    addSuperAdmin,
+    updateSuperAdmin,
+    deleteSuperAdmin,
     addSubAdmin,
     updateSubAdmin,
     deleteSubAdmin,
@@ -1561,7 +1702,6 @@ function App() {
         >
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
-          <Route path="shoppers" element={<Shoppers />} />
           <Route path="visits" element={<Visits />} />
           <Route path="reports" element={<AdminReports />} />
           <Route path="points" element={<Points />} />

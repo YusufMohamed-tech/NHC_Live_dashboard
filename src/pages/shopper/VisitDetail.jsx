@@ -17,6 +17,18 @@ function makeInitialScores(visit, criteria) {
   }, {})
 }
 
+function makeInitialCriteriaNotes(visit, criteria) {
+  if (!visit) return {}
+
+  const savedNotes = visit.scores?.__notes
+
+  return criteria.reduce((accumulator, criterion) => {
+    accumulator[criterion.key] =
+      typeof savedNotes?.[criterion.key] === 'string' ? savedNotes[criterion.key] : ''
+    return accumulator
+  }, {})
+}
+
 export default function VisitDetail({ fromCompleted = false }) {
   const { visitId } = useParams()
   const navigate = useNavigate()
@@ -35,6 +47,9 @@ export default function VisitDetail({ fromCompleted = false }) {
   )
 
   const [scores, setScores] = useState(() => makeInitialScores(visit, evaluationCriteria))
+  const [criteriaNotes, setCriteriaNotes] = useState(() =>
+    makeInitialCriteriaNotes(visit, evaluationCriteria),
+  )
   const [notes, setNotes] = useState(() => visit?.notes ?? '')
   const [error, setError] = useState('')
 
@@ -79,7 +94,10 @@ export default function VisitDetail({ fromCompleted = false }) {
     }
 
     await completeVisit(visit.id, {
-      scores,
+      scores: {
+        ...scores,
+        __notes: criteriaNotes,
+      },
       notes,
     })
 
@@ -108,16 +126,12 @@ export default function VisitDetail({ fromCompleted = false }) {
           {isCompleted && <PointsBadge points={visit.pointsEarned ?? 0} className="ms-auto" />}
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">التاريخ والوقت</p>
             <p className="mt-1 text-sm font-bold text-slate-800">
               {visit.date} • {visit.time}
             </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">رقم العضوية</p>
-            <p className="mt-1 text-sm font-bold text-slate-800">{visit.membershipId}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">المعرف الداخلي</p>
@@ -163,6 +177,25 @@ export default function VisitDetail({ fromCompleted = false }) {
                   }
                   readOnly={isCompleted}
                   showValue
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="mb-2 block text-xs font-bold text-slate-600">
+                  ملاحظات هذا المعيار
+                </label>
+                <textarea
+                  value={criteriaNotes[criterion.key] ?? ''}
+                  onChange={(event) =>
+                    setCriteriaNotes((previous) => ({
+                      ...previous,
+                      [criterion.key]: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  readOnly={isCompleted}
+                  placeholder="اكتب ما لاحظته في هذا المعيار..."
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>

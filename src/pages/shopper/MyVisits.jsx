@@ -109,10 +109,7 @@ export default function MyVisits() {
               {visit.scenario}
             </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <span className="rounded-lg bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
-                {visit.membershipId}
-              </span>
+            <div className="mt-3 flex items-center justify-end">
               <Link
                 to={`/shopper/visits/${visit.id}`}
                 className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-700"
