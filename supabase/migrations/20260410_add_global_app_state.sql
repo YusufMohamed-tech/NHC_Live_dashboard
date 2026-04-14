@@ -4,5 +4,13 @@ CREATE TABLE IF NOT EXISTS public.app_state (
   data jsonb not null
 );
 
--- Ensure Read/Write access is fully open since the app handles its own role authorization
-ALTER TABLE public.app_state DISABLE ROW LEVEL SECURITY;
+-- Runtime no longer depends on this table directly; keep it locked by default.
+ALTER TABLE public.app_state ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS app_state_no_access ON public.app_state;
+CREATE POLICY app_state_no_access
+ON public.app_state
+FOR ALL
+TO anon, authenticated
+USING (false)
+WITH CHECK (false);

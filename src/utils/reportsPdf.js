@@ -2,45 +2,200 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { calculateWeightedScore } from './scoring'
 
-const PURPLE = [124, 58, 237]
-const NHC_GREEN = [27, 94, 59]
-const CHESS_LIME = [168, 201, 58]
+const PRIMARY = [79, 70, 229]
+const PRIMARY_DEEP = [55, 48, 163]
+const PRIMARY_SOFT = [129, 140, 248]
+const TEXT_DARK = [15, 23, 42]
+const TEXT_MUTED = [71, 85, 105]
+const HEADER_HEIGHT = 82
+const SUBPAGE_TITLE_Y = 142
+const SUBPAGE_TABLE_START_Y = 170
+const PDF_FONT_FILE = 'noto-naskh-arabic-regular.ttf'
+const PDF_FONT_FAMILY = 'NotoNaskhArabic'
+const HEADER_VISUAL_BARS = [14, 20, 30, 20, 24, 16]
 
-async function imageToDataUrl(path) {
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  let binary = ''
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  return window.btoa(binary)
+}
+
+async function fetchAssetAsDataUrl(assetPath) {
   try {
-    const response = await fetch(path)
-    const blob = await response.blob()
+    const response = await fetch(assetPath)
+    if (!response.ok) return null
 
-    return await new Promise((resolve) => {
+    const blob = await response.blob()
+    return await new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onloadend = () => resolve(String(reader.result))
-      reader.onerror = () => resolve('')
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error(`Unable to load ${assetPath}`))
       reader.readAsDataURL(blob)
     })
   } catch {
-    return ''
+    return null
   }
 }
 
-async function loadReportBrandingAssets() {
-  return { nhcLogo: null, chessLogo: null }
+async function registerArabicFont(doc) {
+  try {
+    const response = await fetch('/branding/noto-naskh-arabic-regular.ttf')
+    if (!response.ok) return null
+
+    const fontBuffer = await response.arrayBuffer()
+    const fontBase64 = arrayBufferToBase64(fontBuffer)
+    doc.addFileToVFS(PDF_FONT_FILE, fontBase64)
+    doc.addFont(PDF_FONT_FILE, PDF_FONT_FAMILY, 'normal')
+
+    return PDF_FONT_FAMILY
+  } catch {
+    return null
+  }
 }
 
-function drawGradientConnector(doc, startX, startY, width = 48) {
-  // Empty, no longer in use
+async function loadReportBrandingAssets(doc) {
+  const [nhcLogo, chessLogo, fontFamily] = await Promise.all([
+    fetchAssetAsDataUrl('/branding/nhc-logo.png'),
+    fetchAssetAsDataUrl('/branding/chessboard-logo.jpeg'),
+    registerArabicFont(doc),
+  ])
+
+  return {
+    nhcLogo,
+    chessLogo,
+    fontFamily: fontFamily ?? 'helvetica',
+  }
 }
 
-function drawPdfReportHeader(doc, assets, { pageWidth, y = 18 }) {
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(11)
-  doc.text('NHC — برنامج المتحري الخفي', pageWidth - 24, y + 15, { align: 'right' })
+function safeText(value) {
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
+}
+
+function rtlText(doc, value) {
+  const text = safeText(value)
+  if (typeof doc.processArabic === 'function') {
+    return doc.processArabic(text)
+  }
+
+  return text
+}
+
+function setFont(doc, fontFamily, fontSize) {
+  doc.setFont(fontFamily, 'normal')
+  doc.setFontSize(fontSize)
+}
+
+function setTextColor(doc, color) {
+  doc.setTextColor(color[0], color[1], color[2])
+}
+
+function drawImageContain(doc, imageData, imageType, boxX, boxY, boxWidth, boxHeight) {
+  if (!imageData) return
+
+  try {
+    const imageProps = doc.getImageProperties(imageData)
+    const imageWidth = Number(imageProps?.width ?? boxWidth)
+    const imageHeight = Number(imageProps?.height ?? boxHeight)
+
+    if (!imageWidth || !imageHeight) {
+      doc.addImage(imageData, imageType, boxX, boxY, boxWidth, boxHeight)
+      return
+    }
+
+    const scale = Math.min(1, Math.min(boxWidth / imageWidth, boxHeight / imageHeight))
+    const drawWidth = imageWidth * scale
+    const drawHeight = imageHeight * scale
+    const drawX = boxX + (boxWidth - drawWidth) / 2
+    const drawY = boxY + (boxHeight - drawHeight) / 2
+
+    doc.addImage(imageData, imageType, drawX, drawY, drawWidth, drawHeight)
+  } catch {
+    // Ignore image decoding errors and continue generating the report.
+  }
+}
+
+function drawLogoCard(doc, { x, y, width, height, imageData, imageType }) {
+  doc.setFillColor(255, 255, 255)
+  doc.setDrawColor(224, 231, 255)
+  doc.setLineWidth(1)
+  doc.roundedRect(x, y, width, height, 10, 10, 'FD')
+
+  drawImageContain(doc, imageData, imageType, x + 10, y + 8, width - 20, height - 16)
+}
+
+function drawHeaderVisuals(doc, pageWidth, y) {
+  doc.setFillColor(...PRIMARY)
+  doc.rect(0, y, pageWidth, HEADER_HEIGHT, 'F')
+
+  doc.setFillColor(...PRIMARY_DEEP)
+  doc.rect(0, y + HEADER_HEIGHT - 10, pageWidth, 10, 'F')
+
+  doc.setFillColor(99, 102, 241)
+  doc.circle(52, y + 18, 16, 'F')
+  doc.circle(pageWidth - 56, y + 18, 14, 'F')
+
+  doc.setDrawColor(...PRIMARY_SOFT)
+  doc.setLineWidth(0.8)
+  for (let lineX = -20; lineX < pageWidth + 20; lineX += 38) {
+    doc.line(lineX, y + HEADER_HEIGHT - 6, lineX + 18, y + HEADER_HEIGHT - 22)
+  }
+
+  let barsX = pageWidth / 2 - 41
+  doc.setFillColor(199, 210, 254)
+  HEADER_VISUAL_BARS.forEach((barHeight) => {
+    doc.roundedRect(barsX, y + HEADER_HEIGHT - 8 - barHeight, 8, barHeight, 2, 2, 'F')
+    barsX += 14
+  })
+}
+
+function drawPdfReportHeader(doc, assets, { pageWidth, y = 0, withBackground = true }) {
+  if (withBackground) {
+    drawHeaderVisuals(doc, pageWidth, y)
+  }
+
+  const logoY = y + 8
+  const logoHeight = HEADER_HEIGHT - 16
+
+  drawLogoCard(doc, {
+    x: 24,
+    y: logoY,
+    width: 182,
+    height: logoHeight,
+    imageData: assets.chessLogo,
+    imageType: 'JPEG',
+  })
+
+  drawLogoCard(doc, {
+    x: pageWidth - 24 - 172,
+    y: logoY,
+    width: 172,
+    height: logoHeight,
+    imageData: assets.nhcLogo,
+    imageType: 'PNG',
+  })
 }
 
 function formatArabicDate(value = new Date()) {
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     dateStyle: 'full',
     timeStyle: 'short',
   }).format(value)
+}
+
+function formatExportDate(value = new Date()) {
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function qualityLabel(score) {
@@ -60,23 +215,20 @@ function addPageHeaderFooter(doc, generatedAtText, assets) {
   const width = doc.internal.pageSize.getWidth()
   const height = doc.internal.pageSize.getHeight()
 
-  doc.setR2L(true)
-
   for (let pageIndex = 1; pageIndex <= totalPages; pageIndex += 1) {
     doc.setPage(pageIndex)
 
-    doc.setFillColor(...PURPLE)
-    doc.rect(0, 0, width, 68, 'F')
+    drawPdfReportHeader(doc, assets, { pageWidth: width, y: 0, withBackground: true })
 
-    drawPdfReportHeader(doc, assets, { pageWidth: width, y: 12 })
+    setTextColor(doc, [255, 255, 255])
+    setFont(doc, assets.fontFamily, 10)
+    doc.text(rtlText(doc, `صفحة ${pageIndex} من ${totalPages}`), width / 2, 26, {
+      align: 'center',
+    })
 
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(10)
-    doc.text(`صفحة ${pageIndex} من ${totalPages}`, 24, 20, { align: 'left' })
-
-    doc.setTextColor(71, 85, 105)
-    doc.setFontSize(10)
-    doc.text('سري — Chessboard', width - 24, height - 14, { align: 'right' })
+    setTextColor(doc, TEXT_MUTED)
+    setFont(doc, assets.fontFamily, 10)
+    doc.text(rtlText(doc, 'سري - Chessboard'), width - 24, height - 14, { align: 'right' })
     doc.text(generatedAtText, 24, height - 14, { align: 'left' })
   }
 }
@@ -94,11 +246,11 @@ export async function generateMysteryShopperPdf({
     format: 'a4',
   })
 
-  doc.setR2L(true)
-
   const width = doc.internal.pageSize.getWidth()
+  const height = doc.internal.pageSize.getHeight()
   const generatedAtText = formatArabicDate(generatedAt)
-  const brandAssets = await loadReportBrandingAssets()
+  const brandAssets = await loadReportBrandingAssets(doc)
+  setFont(doc, brandAssets.fontFamily, 12)
 
   const completedVisits = visits.filter((visit) => visit.status === 'مكتملة')
   const pendingVisits = visits.filter((visit) => visit.status === 'معلقة')
@@ -106,7 +258,7 @@ export async function generateMysteryShopperPdf({
 
   const averageRating = completedVisits.length
     ? completedVisits.reduce(
-        (sum, visit) => sum + calculateWeightedScore(visit.scores),
+        (sum, visit) => sum + calculateWeightedScore(visit.scores ?? {}),
         0,
       ) / completedVisits.length
     : 0
@@ -128,7 +280,7 @@ export async function generateMysteryShopperPdf({
 
     const avgScore = shopperCompleted.length
       ? shopperCompleted.reduce(
-          (sum, visit) => sum + calculateWeightedScore(visit.scores),
+          (sum, visit) => sum + calculateWeightedScore(visit.scores ?? {}),
           0,
         ) / shopperCompleted.length
       : 0
@@ -138,7 +290,7 @@ export async function generateMysteryShopperPdf({
       city: shopper.city,
       visitsCount: shopperVisits.length,
       avgScore,
-      points: shopper.points,
+      points: Number(shopper.points ?? 0),
       status: shopper.status,
     }
   })
@@ -158,64 +310,84 @@ export async function generateMysteryShopperPdf({
     }
   })
 
+  const noDataRow = (columnsCount) => {
+    if (columnsCount <= 0) return []
+    return [
+      rtlText(doc, 'لا توجد بيانات متاحة'),
+      ...Array.from({ length: columnsCount - 1 }, () => '-'),
+    ]
+  }
+
+  const tableStyles = {
+    font: brandAssets.fontFamily,
+    fontStyle: 'normal',
+    halign: 'right',
+    valign: 'middle',
+    fontSize: 10,
+    textColor: [30, 41, 59],
+    cellPadding: 6,
+    overflow: 'linebreak',
+  }
+
   doc.setFillColor(255, 255, 255)
-  doc.rect(0, 0, width, doc.internal.pageSize.getHeight(), 'F')
+  doc.rect(0, 0, width, height, 'F')
 
-  drawPdfReportHeader(doc, brandAssets, { pageWidth: width, y: 56 })
+  drawPdfReportHeader(doc, brandAssets, { pageWidth: width, y: 0, withBackground: true })
 
-  doc.setTextColor(15, 23, 42)
-  doc.setFontSize(28)
-  doc.text('تقرير برنامج المتحري الخفي', width - 40, 190, { align: 'right' })
+  setTextColor(doc, TEXT_DARK)
+  setFont(doc, brandAssets.fontFamily, 28)
+  doc.text(rtlText(doc, 'تقرير برنامج المتحري الخفي'), width - 40, 170, { align: 'right' })
 
-  doc.setFontSize(14)
-  doc.setTextColor(71, 85, 105)
-  doc.text('National Housing Company — Chessboard', width - 40, 225, {
+  setFont(doc, brandAssets.fontFamily, 14)
+  setTextColor(doc, TEXT_MUTED)
+  doc.text(rtlText(doc, 'تقرير متابعة أداء الزيارات والمتسوقين'), width - 40, 205, {
     align: 'right',
   })
 
-  doc.setFontSize(12)
-  doc.text(`تاريخ الإنشاء: ${generatedAtText}`, width - 40, 260, { align: 'right' })
+  setFont(doc, brandAssets.fontFamily, 12)
+  doc.text(rtlText(doc, `تاريخ الإنشاء: ${generatedAtText}`), width - 40, 235, {
+    align: 'right',
+  })
 
   doc.setFillColor(254, 242, 242)
   doc.setDrawColor(244, 63, 94)
-  doc.roundedRect(width - 300, 290, 260, 30, 15, 15, 'FD')
+  doc.roundedRect(width - 300, 265, 260, 30, 15, 15, 'FD')
   doc.setTextColor(190, 24, 93)
-  doc.setFontSize(12)
-  doc.text('سري — محمي باتفاقية عدم الإفصاح', width - 170, 310, { align: 'center' })
+  setFont(doc, brandAssets.fontFamily, 12)
+  doc.text(rtlText(doc, 'سري - محمي باتفاقية عدم الإفصاح'), width - 170, 285, {
+    align: 'center',
+  })
 
   doc.addPage()
 
-  doc.setFontSize(22)
-  doc.setTextColor(15, 23, 42)
-  doc.text('ملخص المؤشرات', width - 40, 70, { align: 'right' })
+  setFont(doc, brandAssets.fontFamily, 22)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'ملخص المؤشرات'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
 
   const summaryRows = [
-    ['إجمالي الزيارات', visits.length],
-    ['الزيارات المكتملة', completedVisits.length],
-    ['الزيارات المعلقة', pendingVisits.length],
-    ['الزيارات القادمة', upcomingVisits.length],
-    ['متوسط التقييم', `${averageRating.toFixed(2)} / 5`],
-    ['إجمالي المشاكل', issues.length],
-    ['مشاكل بسيطة', issueSummary.simple],
-    ['مشاكل متوسطة', issueSummary.medium],
-    ['مشاكل خطيرة', issueSummary.critical],
-    ['إجمالي النقاط الموزعة', totalDistributedPoints],
+    [rtlText(doc, 'إجمالي الزيارات'), String(visits.length)],
+    [rtlText(doc, 'الزيارات المكتملة'), String(completedVisits.length)],
+    [rtlText(doc, 'الزيارات المعلقة'), String(pendingVisits.length)],
+    [rtlText(doc, 'الزيارات القادمة'), String(upcomingVisits.length)],
+    [rtlText(doc, 'متوسط التقييم'), `${averageRating.toFixed(2)} / 5`],
+    [rtlText(doc, 'إجمالي المشاكل'), String(issues.length)],
+    [rtlText(doc, 'مشاكل بسيطة'), String(issueSummary.simple)],
+    [rtlText(doc, 'مشاكل متوسطة'), String(issueSummary.medium)],
+    [rtlText(doc, 'مشاكل خطيرة'), String(issueSummary.critical)],
+    [rtlText(doc, 'إجمالي النقاط الموزعة'), String(totalDistributedPoints)],
   ]
 
   autoTable(doc, {
-    startY: 95,
-    head: [['المؤشر', 'القيمة']],
+    startY: SUBPAGE_TABLE_START_Y,
+    head: [[rtlText(doc, 'المؤشر'), rtlText(doc, 'القيمة')]],
     body: summaryRows,
     theme: 'grid',
-    styles: {
-      halign: 'right',
-      fontSize: 11,
-      textColor: [30, 41, 59],
-      cellPadding: 7,
-    },
+    styles: { ...tableStyles, fontSize: 11, cellPadding: 7 },
     headStyles: {
-      fillColor: PURPLE,
+      fillColor: PRIMARY,
       textColor: [255, 255, 255],
+      font: brandAssets.fontFamily,
+      fontStyle: 'normal',
       halign: 'right',
     },
     alternateRowStyles: {
@@ -226,35 +398,42 @@ export async function generateMysteryShopperPdf({
 
   doc.addPage()
 
-  doc.setFontSize(22)
-  doc.setTextColor(15, 23, 42)
-  doc.text('جدول الزيارات', width - 40, 70, { align: 'right' })
+  setFont(doc, brandAssets.fontFamily, 22)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'جدول الزيارات'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
+
+  const visitsRows = visits.map((visit) => {
+    const shopper = shoppers.find((item) => item.id === visit.assignedShopperId)
+    return [
+      rtlText(doc, visit.officeName),
+      rtlText(doc, visit.city),
+      rtlText(doc, visit.date),
+      rtlText(doc, shopper?.name ?? '-'),
+      calculateWeightedScore(visit.scores ?? {}).toFixed(2),
+      rtlText(doc, visit.status),
+      String(Number(visit.pointsEarned ?? 0)),
+    ]
+  })
 
   autoTable(doc, {
-    startY: 95,
-    head: [['المنشأة', 'المدينة', 'التاريخ', 'المتسوق', 'التقييم', 'الحالة', 'النقاط']],
-    body: visits.map((visit) => {
-      const shopper = shoppers.find((item) => item.id === visit.assignedShopperId)
-      return [
-        visit.officeName,
-        visit.city,
-        visit.date,
-        shopper?.name ?? '-',
-        calculateWeightedScore(visit.scores).toFixed(2),
-        visit.status,
-        Number(visit.pointsEarned ?? 0),
-      ]
-    }),
+    startY: SUBPAGE_TABLE_START_Y,
+    head: [[
+      rtlText(doc, 'المنشأة'),
+      rtlText(doc, 'المدينة'),
+      rtlText(doc, 'التاريخ'),
+      rtlText(doc, 'المتسوق'),
+      rtlText(doc, 'التقييم'),
+      rtlText(doc, 'الحالة'),
+      rtlText(doc, 'النقاط'),
+    ]],
+    body: visitsRows.length > 0 ? visitsRows : [noDataRow(7)],
     theme: 'grid',
-    styles: {
-      halign: 'right',
-      fontSize: 9,
-      textColor: [30, 41, 59],
-      cellPadding: 5,
-    },
+    styles: { ...tableStyles, fontSize: 9, cellPadding: 5 },
     headStyles: {
-      fillColor: PURPLE,
+      fillColor: PRIMARY,
       textColor: [255, 255, 255],
+      font: brandAssets.fontFamily,
+      fontStyle: 'normal',
       halign: 'right',
       fontSize: 9,
     },
@@ -266,31 +445,37 @@ export async function generateMysteryShopperPdf({
 
   doc.addPage()
 
-  doc.setFontSize(22)
-  doc.setTextColor(15, 23, 42)
-  doc.text('جدول المتسوقين', width - 40, 70, { align: 'right' })
+  setFont(doc, brandAssets.fontFamily, 22)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'جدول المتسوقين'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
+
+  const shoppersRows = shopperRows.map((row) => [
+    rtlText(doc, row.name),
+    rtlText(doc, row.city),
+    String(row.visitsCount),
+    row.avgScore.toFixed(2),
+    String(row.points),
+    rtlText(doc, row.status),
+  ])
 
   autoTable(doc, {
-    startY: 95,
-    head: [['المتسوق', 'المدينة', 'الزيارات', 'متوسط التقييم', 'النقاط', 'الحالة']],
-    body: shopperRows.map((row) => [
-      row.name,
-      row.city,
-      row.visitsCount,
-      row.avgScore.toFixed(2),
-      row.points,
-      row.status,
-    ]),
+    startY: SUBPAGE_TABLE_START_Y,
+    head: [[
+      rtlText(doc, 'المتسوق'),
+      rtlText(doc, 'المدينة'),
+      rtlText(doc, 'الزيارات'),
+      rtlText(doc, 'متوسط التقييم'),
+      rtlText(doc, 'النقاط'),
+      rtlText(doc, 'الحالة'),
+    ]],
+    body: shoppersRows.length > 0 ? shoppersRows : [noDataRow(6)],
     theme: 'grid',
-    styles: {
-      halign: 'right',
-      fontSize: 10,
-      textColor: [30, 41, 59],
-      cellPadding: 6,
-    },
+    styles: { ...tableStyles, fontSize: 10, cellPadding: 6 },
     headStyles: {
-      fillColor: PURPLE,
+      fillColor: PRIMARY,
       textColor: [255, 255, 255],
+      font: brandAssets.fontFamily,
+      fontStyle: 'normal',
       halign: 'right',
     },
     alternateRowStyles: {
@@ -301,28 +486,29 @@ export async function generateMysteryShopperPdf({
 
   doc.addPage()
 
-  doc.setFontSize(22)
-  doc.setTextColor(15, 23, 42)
-  doc.text('متوسط درجات المعايير', width - 40, 70, { align: 'right' })
+  setFont(doc, brandAssets.fontFamily, 22)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'متوسط درجات المعايير'), width - 40, SUBPAGE_TITLE_Y, {
+    align: 'right',
+  })
+
+  const criteriaTableRows = criteriaRows.map((row) => [
+    rtlText(doc, row.label),
+    `${row.average.toFixed(2)} / 5`,
+    rtlText(doc, row.level),
+  ])
 
   autoTable(doc, {
-    startY: 95,
-    head: [['المعيار', 'متوسط الدرجة', 'مؤشر الجودة']],
-    body: criteriaRows.map((row) => [
-      row.label,
-      `${row.average.toFixed(2)} / 5`,
-      row.level,
-    ]),
+    startY: SUBPAGE_TABLE_START_Y,
+    head: [[rtlText(doc, 'المعيار'), rtlText(doc, 'متوسط الدرجة'), rtlText(doc, 'مؤشر الجودة')]],
+    body: criteriaTableRows.length > 0 ? criteriaTableRows : [noDataRow(3)],
     theme: 'grid',
-    styles: {
-      halign: 'right',
-      fontSize: 11,
-      textColor: [30, 41, 59],
-      cellPadding: 7,
-    },
+    styles: { ...tableStyles, fontSize: 11, cellPadding: 7 },
     headStyles: {
-      fillColor: PURPLE,
+      fillColor: PRIMARY,
       textColor: [255, 255, 255],
+      font: brandAssets.fontFamily,
+      fontStyle: 'normal',
       halign: 'right',
     },
     alternateRowStyles: {
@@ -335,15 +521,16 @@ export async function generateMysteryShopperPdf({
       const color = qualityColor(score)
       hookData.cell.styles.fillColor = color
       hookData.cell.styles.textColor = [255, 255, 255]
-      hookData.cell.styles.fontStyle = 'bold'
+      hookData.cell.styles.fontStyle = 'normal'
       hookData.cell.styles.halign = 'center'
+      hookData.cell.text = [rtlText(doc, hookData.cell.text?.[0] ?? '')]
     },
     margin: { left: 40, right: 40 },
   })
 
   addPageHeaderFooter(doc, generatedAtText, brandAssets)
 
-  const exportDate = new Intl.DateTimeFormat('en-CA').format(generatedAt)
+  const exportDate = formatExportDate(generatedAt)
   const fileName = `NHC-Mystery-Shopper-Report-${exportDate}.pdf`
   doc.save(fileName)
 }

@@ -1,16 +1,94 @@
-# React + Vite
+# NHC Mystery Shopper Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production-oriented React + Supabase dashboard for:
 
-Currently, two official plugins are available:
+- Super Admin management
+- Admin operations (shoppers, visits, reports, points)
+- Shopper workflows (assigned visits, completion flow, uploads, reports)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+- React 18 + Vite
+- Supabase (Postgres + Realtime + Storage)
+- Tailwind CSS
+- Recharts + jsPDF
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 20+
+- npm 10+
+- Supabase project with SQL Editor access
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Environment Variables
+
+Create `.env` from `.env.example` and fill values:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPERADMIN_EMAIL`
+- `VITE_SUPERADMIN_PASSWORD`
+- `VITE_SUPERADMIN_NAME`
+
+## Database Setup (Required)
+
+Run migrations in this order inside Supabase SQL Editor:
+
+1. `supabase/migrations/20260409_add_visit_files.sql`
+2. `supabase/migrations/20260410_add_global_app_state.sql`
+3. `supabase/migrations/20260411_finalize_production_schema.sql`
+4. `supabase/migrations/20260411_storage_and_static_seed.sql`
+
+Notes:
+
+- Migrations are written to be idempotent and safe for repeated runs.
+- Storage bucket `visit-files` is private and accessed through signed URLs.
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Windows PowerShell note: if execution policy blocks npm.ps1, use:
+
+```bash
+npm.cmd install
+npm.cmd run dev
+```
+
+Run app:
+
+```bash
+npm run dev
+```
+
+Quality checks:
+
+```bash
+npm run lint
+npm run build
+```
+
+## Deployment Checklist
+
+Before handing to client:
+
+1. Ensure all migrations are executed in production Supabase.
+2. Verify `.env` in hosting platform contains all required variables.
+3. Run `npm run lint` and `npm run build` with zero errors.
+4. Verify these flows manually:
+   - super admin login
+   - add/edit/delete admin
+   - add/edit/delete shopper
+   - add/edit/delete visit
+   - shopper completes visit and points update
+   - upload/delete visit files
+   - export PDF report
+5. Confirm Supabase Storage contains uploaded files under `visits/{visitId}/...`.
+
+## Security Note
+
+Current database policies preserve compatibility with custom frontend auth and anon key access.
+For stricter enterprise security, migrate authentication to Supabase Auth and tighten RLS policies to role/owner-based checks.
