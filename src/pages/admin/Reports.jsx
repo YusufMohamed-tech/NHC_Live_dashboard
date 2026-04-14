@@ -1,11 +1,10 @@
 import { BarChart3, Download, LoaderCircle } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -41,6 +40,8 @@ export default function Reports() {
   const [activeSubTab, setActiveSubTab] = useState('overview')
   const [isExporting, setIsExporting] = useState(false)
   const [toast, setToast] = useState({ type: '', message: '' })
+  const chartContainerRef = useRef(null)
+  const [chartWidth, setChartWidth] = useState(0)
 
   useEffect(() => {
     if (!toast.message) return undefined
@@ -51,6 +52,33 @@ export default function Reports() {
 
     return () => window.clearTimeout(timeout)
   }, [toast])
+
+  useEffect(() => {
+    if (activeSubTab !== 'shoppers') return undefined
+
+    const element = chartContainerRef.current
+    if (!element) return undefined
+
+    const updateWidth = () => {
+      const nextWidth = Math.floor(element.getBoundingClientRect().width)
+      setChartWidth(nextWidth > 0 ? nextWidth : 0)
+    }
+
+    updateWidth()
+
+    let observer = null
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(updateWidth)
+      observer.observe(element)
+    }
+
+    window.addEventListener('resize', updateWidth)
+
+    return () => {
+      window.removeEventListener('resize', updateWidth)
+      observer?.disconnect()
+    }
+  }, [activeSubTab])
 
   const completedVisits = useMemo(
     () => visits.filter((visit) => visit.status === 'مكتملة'),
@@ -388,23 +416,20 @@ export default function Reports() {
             <h3 className="font-display text-xl font-black text-slate-900">
               النقاط لكل متسوق
             </h3>
-            <div className="mt-4 h-80 w-full min-w-0">
-              {hasShopperChartData ? (
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                  minWidth={280}
-                  minHeight={280}
-                  debounce={80}
+            <div ref={chartContainerRef} className="mt-4 h-80 w-full min-w-0">
+              {hasShopperChartData && chartWidth > 0 ? (
+                <BarChart
+                  width={Math.max(280, chartWidth)}
+                  height={320}
+                  data={chartData}
+                  margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
                 >
-                  <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
-                    <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
+                  <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                </BarChart>
               ) : (
                 <p className="flex h-full items-center justify-center text-sm text-slate-500">
                   لا توجد بيانات كافية لعرض الرسم البياني حالياً.
