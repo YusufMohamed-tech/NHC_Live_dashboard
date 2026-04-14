@@ -1,5 +1,5 @@
 import { Medal, Pencil, Star, Trophy } from 'lucide-react'
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Avatar from '../../components/Avatar'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
@@ -57,6 +57,9 @@ const LeaderboardRow = memo(function LeaderboardRow({
 export default function Points() {
   const { shoppers, visits, pointsRules, awardShopperPoints, dataLoading, dataError } =
     useOutletContext()
+  const [editingShopper, setEditingShopper] = useState(null)
+  const [pointsInput, setPointsInput] = useState('')
+  const [pointsError, setPointsError] = useState('')
 
   const sortedShoppers = useMemo(
     () => [...shoppers].sort((first, second) => second.points - first.points),
@@ -70,25 +73,35 @@ export default function Points() {
   const handleEditPoints = useCallback(
     (shopper) => {
       const currentPoints = Number(shopper?.points ?? 0)
-      const input = window.prompt('أدخل الرصيد الجديد للمتسوق', String(currentPoints))
-
-      if (input === null) return
-
-      const parsed = Number(input)
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        window.alert('الرجاء إدخال رقم صالح أكبر من أو يساوي صفر.')
-        return
-      }
-
-      const targetPoints = Math.round(parsed)
-      const delta = targetPoints - currentPoints
-
-      if (delta === 0) return
-
-      awardShopperPoints(shopper.id, delta)
+      setEditingShopper(shopper)
+      setPointsInput(String(currentPoints))
+      setPointsError('')
     },
-    [awardShopperPoints],
+    [],
   )
+
+  const handleSavePoints = useCallback(async () => {
+    if (!editingShopper) return
+
+    const currentPoints = Number(editingShopper.points ?? 0)
+    const parsed = Number(pointsInput)
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setPointsError('الرجاء إدخال رقم صالح أكبر من أو يساوي صفر.')
+      return
+    }
+
+    const targetPoints = Math.round(parsed)
+    const delta = targetPoints - currentPoints
+
+    if (delta !== 0) {
+      await awardShopperPoints(editingShopper.id, delta)
+    }
+
+    setEditingShopper(null)
+    setPointsInput('')
+    setPointsError('')
+  }, [awardShopperPoints, editingShopper, pointsInput])
 
   if (dataLoading) {
     return <LoadingState />
@@ -199,6 +212,53 @@ export default function Points() {
           </ul>
         </article>
       </section>
+
+      {editingShopper && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <h4 className="font-display text-lg font-black text-slate-900">تعديل النقاط</h4>
+            <p className="mt-1 text-sm text-slate-500">{editingShopper.name}</p>
+
+            <label className="mt-4 block space-y-1 text-sm text-slate-600">
+              <span>الرصيد الجديد</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={pointsInput}
+                onChange={(event) => {
+                  setPointsInput(event.target.value)
+                  if (pointsError) setPointsError('')
+                }}
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none transition focus:border-indigo-500"
+              />
+            </label>
+
+            {pointsError && <p className="mt-2 text-xs font-semibold text-rose-600">{pointsError}</p>}
+
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingShopper(null)
+                  setPointsInput('')
+                  setPointsError('')
+                }}
+                className="h-11 flex-1 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePoints}
+                className="h-11 flex-1 rounded-xl bg-indigo-600 text-sm font-bold text-white transition hover:bg-indigo-700"
+              >
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
