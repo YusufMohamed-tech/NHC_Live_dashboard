@@ -90,23 +90,6 @@ export default function Login({ onLogin }) {
               </button>
             </form>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <h2 className="mb-3 text-sm font-black text-slate-800">حسابات تجريبية</h2>
-              <div className="space-y-2 text-sm">
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="font-bold text-slate-800">Super Admin</p>
-                  <p className="text-slate-600">superadmin@nhc.sa / super123</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="font-bold text-slate-800">Sub Admin</p>
-                  <p className="text-slate-500">يتم إنشاؤه من خلال لوحة المدير العام</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="font-bold text-slate-800">Shopper</p>
-                  <p className="text-slate-500">يتم إنشاؤه من خلال لوحة النظام</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="mt-6">
