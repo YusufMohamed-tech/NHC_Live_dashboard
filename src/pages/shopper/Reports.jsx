@@ -336,9 +336,6 @@ export default function Reports() {
         </div>
       </section>
 
-      <footer className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500 shadow-sm">
-        محمي باتفاقية عدم الإفصاح | NDA | صنع بواسطة Chessboard
-      </footer>
     </div>
   )
 }

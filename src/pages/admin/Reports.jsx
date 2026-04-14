@@ -184,6 +184,7 @@ export default function Reports() {
     name: shopper.name.split(' ')[0],
     points: shopper.points,
   }))
+  const hasShopperChartData = chartData.length > 0
 
   const canExportPdf = user?.role === 'superadmin' || user?.role === 'admin'
 
@@ -387,16 +388,28 @@ export default function Reports() {
             <h3 className="font-display text-xl font-black text-slate-900">
               النقاط لكل متسوق
             </h3>
-            <div className="mt-4 h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
-                  <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="mt-4 h-80 w-full min-w-0">
+              {hasShopperChartData ? (
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={280}
+                  minHeight={280}
+                  debounce={80}
+                >
+                  <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
+                    <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="flex h-full items-center justify-center text-sm text-slate-500">
+                  لا توجد بيانات كافية لعرض الرسم البياني حالياً.
+                </p>
+              )}
             </div>
           </article>
 

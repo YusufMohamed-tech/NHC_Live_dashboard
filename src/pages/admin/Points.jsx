@@ -16,7 +16,7 @@ const LeaderboardRow = memo(function LeaderboardRow({
   maxPoints,
   onEdit,
 }) {
-  const progress = Math.round((shopper.points / maxPoints) * 100)
+  const progress = maxPoints > 0 ? Math.round((shopper.points / maxPoints) * 100) : 0
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-slate-300">
@@ -38,7 +38,7 @@ const LeaderboardRow = memo(function LeaderboardRow({
           <p className="text-base font-black text-amber-700">{shopper.points} نقطة</p>
           <button
             type="button"
-            onClick={() => onEdit(shopper.id)}
+            onClick={() => onEdit(shopper)}
             className="rounded-lg border border-slate-300 p-2 text-slate-600 transition hover:bg-slate-100"
             title="تعديل النقاط"
           >
@@ -66,10 +66,26 @@ export default function Points() {
   const totalPoints = shoppers.reduce((sum, shopper) => sum + shopper.points, 0)
   const averagePerShopper = shoppers.length ? Math.round(totalPoints / shoppers.length) : 0
   const pointsFromVisits = visits.reduce((sum, visit) => sum + (visit.pointsEarned ?? 0), 0)
-  const maxPoints = sortedShoppers[0]?.points ?? 1
+  const maxPoints = sortedShoppers[0]?.points ?? 0
   const handleEditPoints = useCallback(
-    (shopperId) => {
-      awardShopperPoints(shopperId, 10)
+    (shopper) => {
+      const currentPoints = Number(shopper?.points ?? 0)
+      const input = window.prompt('أدخل الرصيد الجديد للمتسوق', String(currentPoints))
+
+      if (input === null) return
+
+      const parsed = Number(input)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        window.alert('الرجاء إدخال رقم صالح أكبر من أو يساوي صفر.')
+        return
+      }
+
+      const targetPoints = Math.round(parsed)
+      const delta = targetPoints - currentPoints
+
+      if (delta === 0) return
+
+      awardShopperPoints(shopper.id, delta)
     },
     [awardShopperPoints],
   )

@@ -61,6 +61,9 @@ const DEFAULT_POINT_RULES = {
   },
 }
 
+const RIYADH_TIME_ZONE = 'Asia/Riyadh'
+const RIYADH_UTC_OFFSET = '+03:00'
+
 function getRoleHome(role) {
   if (role === 'superadmin') return '/superadmin/overview'
   if (role === 'admin') return '/admin/overview'
@@ -89,32 +92,51 @@ function parseVisitDateTime(date, time) {
   if (!dateValue) return new Date().toISOString()
 
   const normalizedTime = String(time ?? '').trim()
-  const match = normalizedTime.match(/(\d{1,2}):(\d{2})\s*(صباحاً|مساءً)?/u)
+  const match = normalizedTime.match(/(\d{1,2}):(\d{2})\s*(صباحاً|مساءً|AM|PM|am|pm)?/u)
 
-  if (!match) {
-    return new Date(`${dateValue}T00:00:00`).toISOString()
+  let hour = 0
+  let minute = 0
+
+  if (match) {
+    hour = Number(match[1])
+    minute = Number(match[2])
+    const period = String(match[3] ?? '').toLowerCase()
+
+    if ((period === 'مساءً' || period === 'pm') && hour < 12) {
+      hour += 12
+    }
+
+    if ((period === 'صباحاً' || period === 'am') && hour === 12) {
+      hour = 0
+    }
   }
 
-  let hour = Number(match[1])
-  const minute = Number(match[2])
-  const period = match[3] ?? 'صباحاً'
+  const safeHour = Number.isFinite(hour) ? Math.max(0, Math.min(23, hour)) : 0
+  const safeMinute = Number.isFinite(minute) ? Math.max(0, Math.min(59, minute)) : 0
 
-  if (period === 'مساءً' && hour < 12) {
-    hour += 12
-  }
-
-  if (period === 'صباحاً' && hour === 12) {
-    hour = 0
-  }
-
-  const visitDate = new Date(dateValue)
-  visitDate.setHours(hour, minute, 0, 0)
-  return visitDate.toISOString()
+  return `${dateValue}T${String(safeHour).padStart(2, '0')}:${String(safeMinute).padStart(2, '0')}:00${RIYADH_UTC_OFFSET}`
 }
 
 function formatVisitDate(visitDate) {
   if (!visitDate) return ''
-  return String(visitDate).split('T')[0]
+
+  const date = new Date(visitDate)
+  if (Number.isNaN(date.getTime())) {
+    return String(visitDate).split('T')[0]
+  }
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: RIYADH_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+
+  const year = parts.find((part) => part.type === 'year')?.value ?? '1970'
+  const month = parts.find((part) => part.type === 'month')?.value ?? '01'
+  const day = parts.find((part) => part.type === 'day')?.value ?? '01'
+
+  return `${year}-${month}-${day}`
 }
 
 function formatVisitTime(visitDate) {
@@ -125,8 +147,15 @@ function formatVisitTime(visitDate) {
     return '10:00 صباحاً'
   }
 
-  const hour24 = date.getHours()
-  const minute = String(date.getMinutes()).padStart(2, '0')
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: RIYADH_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+
+  const hour24 = Number(parts.find((part) => part.type === 'hour')?.value ?? '10')
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '00'
   const period = hour24 >= 12 ? 'مساءً' : 'صباحاً'
   const hour12 = hour24 % 12 || 12
 
@@ -1478,6 +1507,14 @@ function App() {
   }
 
   const defaultPath = activeUser ? getRoleHome(activeUser.role) : '/'
+
+  if (authUser && !activeUser && dataLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm font-semibold text-slate-600">جاري التحقق من الجلسة...</p>
+      </div>
+    )
+  }
 
   return (
     <Suspense

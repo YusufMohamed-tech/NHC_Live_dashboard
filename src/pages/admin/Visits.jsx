@@ -54,6 +54,7 @@ export default function Visits() {
   const [newVisit, setNewVisit] = useState(() =>
     getInitialVisit(shoppers.find((shopper) => shopper.status === 'نشط')?.id ?? ''),
   )
+  const hasAssignableShoppers = shoppers.length > 0
 
   const summary = {
     total: visits.length,
@@ -75,6 +76,10 @@ export default function Visits() {
 
   const handleCreateVisit = async (event) => {
     event.preventDefault()
+
+    if (!newVisit.assignedShopperId) {
+      return
+    }
 
     await addVisit({
       officeName: newVisit.officeName,
@@ -139,7 +144,9 @@ export default function Visits() {
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="ms-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700"
+            disabled={!hasAssignableShoppers}
+            title={!hasAssignableShoppers ? 'أضف متسوقاً أولاً لجدولة زيارة' : undefined}
+            className="ms-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             إضافة زيارة
@@ -270,7 +277,9 @@ export default function Visits() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
-                  className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
+                  disabled={!hasAssignableShoppers}
+                  title={!hasAssignableShoppers ? 'أضف متسوقاً أولاً لجدولة زيارة' : undefined}
+                  className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   إضافة زيارة
                 </button>
@@ -284,7 +293,7 @@ export default function Visits() {
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-xl font-black text-slate-900">إضافة زيارة</h3>
               <button
@@ -394,6 +403,7 @@ export default function Visits() {
                 <select
                   required
                   value={newVisit.assignedShopperId}
+                  disabled={!hasAssignableShoppers}
                   onChange={(event) =>
                     setNewVisit((previous) => ({
                       ...previous,
@@ -411,6 +421,9 @@ export default function Visits() {
                     </option>
                   ))}
                 </select>
+                {!hasAssignableShoppers && (
+                  <p className="text-xs text-amber-700">لا يمكن جدولة زيارة قبل إضافة متسوق.</p>
+                )}
               </label>
 
               <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
@@ -445,7 +458,8 @@ export default function Visits() {
 
               <button
                 type="submit"
-                className="h-11 rounded-xl bg-sky-600 text-sm font-bold text-white transition hover:bg-sky-700 sm:col-span-2"
+                disabled={!hasAssignableShoppers}
+                className="h-11 rounded-xl bg-sky-600 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
               >
                 حفظ الزيارة
               </button>
@@ -456,7 +470,7 @@ export default function Visits() {
 
       {editingVisit && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-xl font-black text-slate-900">تعديل الزيارة</h3>
               <button
