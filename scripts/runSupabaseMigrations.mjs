@@ -15,6 +15,9 @@ const files = [
   'supabase/migrations/20260410_add_global_app_state.sql',
   'supabase/migrations/20260411_finalize_production_schema.sql',
   'supabase/migrations/20260411_storage_and_static_seed.sql',
+  'supabase/migrations/20260415_add_shopper_personal_email.sql',
+  'supabase/migrations/20260415_connect_ops_and_shopper_phones.sql',
+  'supabase/migrations/20260416_remove_visit_attachments.sql',
 ]
 
 const endpoint = `https://api.supabase.com/v1/projects/${projectRef}/database/query`

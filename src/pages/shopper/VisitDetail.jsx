@@ -1,11 +1,10 @@
-import { Building2, Save } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { ErrorState, LoadingState } from '../../components/DataState'
 import PointsBadge from '../../components/PointsBadge'
 import StarRating from '../../components/StarRating'
 import StatusBadge from '../../components/StatusBadge'
-import VisitFilesUploader from '../../components/VisitFilesUploader'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 
 const SHOW_POINTS_SECTION = import.meta.env.DEV
@@ -38,7 +37,6 @@ export default function VisitDetail({ fromCompleted = false }) {
     myVisits,
     evaluationCriteria,
     completeVisit,
-    updateVisitFiles,
     dataLoading,
     dataError,
   } = useOutletContext()
@@ -106,14 +104,6 @@ export default function VisitDetail({ fromCompleted = false }) {
     navigate('/shopper/completed', { replace: true })
   }
 
-  const handleSaveFiles = async ({ visitId: targetVisitId, fileUrls, pointsDelta }) => {
-    await updateVisitFiles({
-      visitId: targetVisitId,
-      fileUrls,
-      pointsDelta,
-    })
-  }
-
   return (
     <div className="space-y-4">
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -148,8 +138,6 @@ export default function VisitDetail({ fromCompleted = false }) {
           <p className="mt-2 text-sm text-slate-600">{visit.scenario}</p>
         </div>
       </section>
-
-      <VisitFilesUploader visit={visit} onSaveFiles={handleSaveFiles} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">

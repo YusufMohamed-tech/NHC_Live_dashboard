@@ -4,12 +4,12 @@ Production-oriented React + Supabase dashboard for:
 
 - Super Admin management
 - Admin operations (shoppers, visits, reports, points)
-- Shopper workflows (assigned visits, completion flow, uploads, reports)
+- Shopper workflows (assigned visits, completion flow, reports)
 
 ## Tech Stack
 
 - React 18 + Vite
-- Supabase (Postgres + Realtime + Storage)
+- Supabase (Postgres + Realtime)
 - Tailwind CSS
 - Recharts + jsPDF
 
@@ -37,11 +37,14 @@ Run migrations in this order inside Supabase SQL Editor:
 2. `supabase/migrations/20260410_add_global_app_state.sql`
 3. `supabase/migrations/20260411_finalize_production_schema.sql`
 4. `supabase/migrations/20260411_storage_and_static_seed.sql`
+5. `supabase/migrations/20260415_add_shopper_personal_email.sql`
+6. `supabase/migrations/20260415_connect_ops_and_shopper_phones.sql`
+7. `supabase/migrations/20260416_remove_visit_attachments.sql`
 
 Notes:
 
 - Migrations are written to be idempotent and safe for repeated runs.
-- Storage bucket `visit-files` is private and accessed through signed URLs.
+- Latest migration removes visit attachments (`visits.file_urls`) and storage policies/bucket.
 
 ## Local Development
 
@@ -84,9 +87,7 @@ Before handing to client:
    - add/edit/delete shopper
    - add/edit/delete visit
    - shopper completes visit and points update
-   - upload/delete visit files
    - export PDF report
-5. Confirm Supabase Storage contains uploaded files under `visits/{visitId}/...`.
 
 ## Security Note
 

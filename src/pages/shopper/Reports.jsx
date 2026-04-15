@@ -12,7 +12,6 @@ import { useMemo } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { ErrorState, LoadingState } from '../../components/DataState'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
-import { getFilePointsFromPath, normalizeVisitFileUrls } from '../../utils/visitFiles'
 
 const SHOW_POINTS_SECTION = import.meta.env.DEV
 
@@ -95,11 +94,6 @@ export default function Reports() {
 
     const completionPoints = completedVisits.length * completionRulePoints
 
-    const mediaPoints = completedVisits.reduce((sum, visit) => {
-      const filePaths = normalizeVisitFileUrls(visit.file_urls)
-      return sum + filePaths.reduce((filesSum, path) => filesSum + getFilePointsFromPath(path), 0)
-    }, 0)
-
     const issuePoints = completedVisits.reduce((sum, visit) => {
       const pointsFromVisitIssues = (visit.issues ?? []).reduce(
         (issuesSum, issue) => issuesSum + Number(issueRuleMap[issue.severity] ?? 0),
@@ -114,11 +108,10 @@ export default function Reports() {
       0,
     )
 
-    const qualityPoints = Math.max(0, visitsTotalPoints - completionPoints - mediaPoints - issuePoints)
+    const qualityPoints = Math.max(0, visitsTotalPoints - completionPoints - issuePoints)
 
     return {
       completionPoints,
-      mediaPoints,
       issuePoints,
       qualityPoints,
       visitsTotalPoints,
@@ -290,14 +283,10 @@ export default function Reports() {
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h3 className="font-display text-xl font-black text-slate-900">تفاصيل نقاطي</h3>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs text-slate-500">نقاط إكمال الزيارات</p>
               <p className="mt-1 text-xl font-black text-slate-900">{pointsBreakdown.completionPoints}</p>
-            </div>
-            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-              <p className="text-xs text-sky-700">نقاط الصور والفيديو</p>
-              <p className="mt-1 text-xl font-black text-sky-800">{pointsBreakdown.mediaPoints}</p>
             </div>
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
               <p className="text-xs text-rose-700">نقاط التحديات الموثقة</p>

@@ -17,7 +17,6 @@ const created = {
   shopperId: null,
   visitId: null,
   issueId: null,
-  storagePath: null,
 }
 
 async function run() {
@@ -106,7 +105,6 @@ async function run() {
         scores: initialScores,
         notes: '',
         points_earned: 0,
-        file_urls: [],
       },
     ])
     .select('*')
@@ -175,35 +173,10 @@ async function run() {
   created.issueId = issue.id
   console.log('OK: issue create')
 
-  const storagePath = `visits/${visit.id}/${Date.now()}_smoke.jpg`
-  created.storagePath = storagePath
-
-  const fileBytes = new Uint8Array([255, 216, 255, 217])
-  const fileBlob = new Blob([fileBytes], { type: 'image/jpeg' })
-
-  const { error: uploadError } = await supabase.storage
-    .from('visit-files')
-    .upload(storagePath, fileBlob, { contentType: 'image/jpeg', upsert: false })
-
-  if (uploadError) throw uploadError
-  console.log('OK: storage upload')
-
-  const { error: fileDeleteError } = await supabase.storage
-    .from('visit-files')
-    .remove([storagePath])
-
-  if (fileDeleteError) throw fileDeleteError
-  created.storagePath = null
-  console.log('OK: storage delete')
-
   console.log('Smoke check passed.')
 }
 
 async function cleanup() {
-  if (created.storagePath) {
-    await supabase.storage.from('visit-files').remove([created.storagePath])
-  }
-
   if (created.issueId) {
     await supabase.from('issues').delete().eq('id', created.issueId)
   }

@@ -2,7 +2,6 @@ import { Suspense, lazy, useMemo, useState, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { calculateWeightedScore } from './utils/scoring'
-import { getFilePointsFromPath, normalizeVisitFileUrls } from './utils/visitFiles'
 
 const Login = lazy(() => import('./pages/Login'))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
@@ -42,8 +41,6 @@ const EMPTY_POINTS_RULES = {
 const DEFAULT_POINT_RULES = {
   visits: {
     complete: 50,
-    image: 5,
-    video: 10,
   },
   issues: {
     بسيطة: 15,
@@ -210,8 +207,6 @@ function mapShopperRow(row) {
 }
 
 function mapVisitRow(row) {
-  const fileUrls = normalizeVisitFileUrls(row.file_urls)
-
   return {
     id: row.id,
     officeName: row.office_name ?? '',
@@ -226,7 +221,6 @@ function mapVisitRow(row) {
     scores: row.scores && typeof row.scores === 'object' ? row.scores : {},
     notes: row.notes ?? '',
     pointsEarned: Number(row.points_earned ?? 0),
-    file_urls: fileUrls,
   }
 }
 
@@ -308,8 +302,6 @@ function getMilestonePoints(rules, completedVisits) {
 
 function calculateVisitPointsFromRules({
   rules,
-  images = 0,
-  videos = 0,
   issueSeverity = [],
   hasComprehensiveReport = false,
   isFastCompletion = false,
@@ -322,24 +314,6 @@ function calculateVisitPointsFromRules({
     (label) => label.includes('إكمال'),
     DEFAULT_POINT_RULES.visits.complete,
   )
-
-  total +=
-    images *
-    findRulePoints(
-      rules,
-      'visits',
-      (label) => label.includes('صورة'),
-      DEFAULT_POINT_RULES.visits.image,
-    )
-
-  total +=
-    videos *
-    findRulePoints(
-      rules,
-      'visits',
-      (label) => label.includes('فيديو'),
-      DEFAULT_POINT_RULES.visits.video,
-    )
 
   issueSeverity.forEach((severity) => {
     total += findRulePoints(
@@ -1431,7 +1405,6 @@ function App() {
       scores: payload.scores ?? makeEmptyScores(evaluationCriteria),
       notes: payload.notes ?? '',
       points_earned: payload.pointsEarned ?? 0,
-      file_urls: normalizeVisitFileUrls(payload.file_urls),
     }
 
     const { data: dbVisit, error } = await supabase
@@ -1477,10 +1450,6 @@ function App() {
     if (updates.scores !== undefined) dbUpdates.scores = updates.scores
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes
     if (updates.pointsEarned !== undefined) dbUpdates.points_earned = updates.pointsEarned
-
-    if (updates.file_urls !== undefined) {
-      dbUpdates.file_urls = normalizeVisitFileUrls(updates.file_urls)
-    }
 
     if (updates.date !== undefined || updates.time !== undefined) {
       dbUpdates.visit_date = parseVisitDateTime(
@@ -1654,8 +1623,6 @@ function App() {
 
     const pointsEarned = calculateVisitPointsFromRules({
       rules: pointsRules,
-      images: 2,
-      videos: 1,
       issueSeverity: generatedIssues.map((issue) => issue.severity),
       hasComprehensiveReport: String(payload.notes ?? '').trim().length >= 30,
       isFastCompletion: true,
@@ -1663,16 +1630,11 @@ function App() {
       completedVisits: completedVisitsCount,
     })
 
-    const mediaPoints = normalizeVisitFileUrls(targetVisit.file_urls).reduce(
-      (sum, path) => sum + getFilePointsFromPath(path),
-      0,
-    )
-
-    const finalVisitPoints = pointsEarned + mediaPoints
+    const finalVisitPoints = pointsEarned
 
     const previousPoints = wasCompleted
       ? Number(targetVisit.pointsEarned ?? 0)
-      : mediaPoints
+      : 0
 
     const nextShopperVisits = Number(relatedShopper?.visits ?? 0) + (wasCompleted ? 0 : 1)
     const nextShopperPoints = Math.max(
@@ -1770,72 +1732,6 @@ function App() {
     return finalVisitPoints
   }
 
-  const updateVisitFiles = async ({ visitId, fileUrls, pointsDelta = 0 }) => {
-    const targetVisit = visits.find((visit) => visit.id === visitId)
-    if (!targetVisit) {
-      throw new Error('visit-not-found')
-    }
-
-    if (activeUser?.role !== 'shopper' || targetVisit.assignedShopperId !== activeUser.id) {
-      throw new Error('not-allowed')
-    }
-
-    const nextFileUrls = Array.isArray(fileUrls) ? fileUrls : []
-    const delta = Number(pointsDelta ?? 0)
-    const nextVisitPoints = Math.max(0, Number(targetVisit.pointsEarned ?? 0) + delta)
-
-    const { error: visitSyncError } = await supabase
-      .from('visits')
-      .update({
-        file_urls: normalizeVisitFileUrls(nextFileUrls),
-        points_earned: nextVisitPoints,
-      })
-      .eq('id', visitId)
-
-    if (visitSyncError) {
-      throw visitSyncError
-    }
-
-    setVisits((previous) =>
-      previous.map((visit) => {
-        if (visit.id !== visitId) return visit
-
-        return {
-          ...visit,
-          file_urls: nextFileUrls,
-          pointsEarned: nextVisitPoints,
-        }
-      }),
-    )
-
-    if (delta !== 0) {
-      const shopperBefore = shoppers.find((shopper) => shopper.id === targetVisit.assignedShopperId)
-      const nextPoints = Math.max(0, Number(shopperBefore?.points ?? 0) + delta)
-
-      setShoppers((previous) =>
-        previous.map((shopper) => {
-          if (shopper.id !== targetVisit.assignedShopperId) return shopper
-
-          return {
-            ...shopper,
-            points: Math.max(0, Number(shopper.points ?? 0) + delta),
-          }
-        }),
-      )
-
-      const { error: shopperSyncError } = await supabase
-        .from('shoppers')
-        .update({ points: nextPoints })
-        .eq('id', targetVisit.assignedShopperId)
-
-      if (shopperSyncError) {
-        console.warn('تعذر مزامنة نقاط المتسوق مع Supabase', shopperSyncError.message)
-      }
-    }
-
-    return true
-  }
-
   const adminScopeProps = {
     user: activeUser,
     shoppers: scopedShoppers,
@@ -1926,7 +1822,6 @@ function App() {
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     completeVisit,
-    updateVisitFiles,
     onLogout: handleLogout,
   }
 
