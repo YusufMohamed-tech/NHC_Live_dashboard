@@ -36,7 +36,7 @@ export default function Login({ onLogin }) {
     }
 
     if (isShopperPortal && user.role !== 'shopper') {
-      setError('هذا الحساب يتبع مدير النظام. اختر أيقونة مدير النظام.')
+      setError('حاول مرة اخري')
       return
     }
 
