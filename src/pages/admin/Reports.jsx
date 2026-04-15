@@ -29,7 +29,10 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/DataState
 import ReportHeader from '../../components/ReportHeader'
 import StatusBadge from '../../components/StatusBadge'
 import useDashboardStats from '../../hooks/useDashboardStats'
-import { generateMysteryShopperPdf } from '../../utils/reportsPdf'
+import {
+  generateMysteryShopperDetailedPdf,
+  generateMysteryShopperPdf,
+} from '../../utils/reportsPdf'
 import { buildVisitAnalytics } from '../../utils/visitAnalytics'
 
 const SHOW_POINTS_SECTION = import.meta.env.DEV
@@ -121,7 +124,7 @@ export default function Reports() {
   } = useOutletContext()
 
   const [activeSubTab, setActiveSubTab] = useState('overview')
-  const [isExporting, setIsExporting] = useState(false)
+  const [exportMode, setExportMode] = useState('')
   const [toast, setToast] = useState({ type: '', message: '' })
 
   useEffect(() => {
@@ -142,6 +145,7 @@ export default function Reports() {
   )
 
   const canExportPdf = ['superadmin', 'admin', 'ops'].includes(user?.role)
+  const isExporting = exportMode !== ''
 
   const regionsSummary = useMemo(() => {
     const byVolume = analytics.cityPerformance[0] ?? null
@@ -161,25 +165,45 @@ export default function Reports() {
     }
   }, [analytics.cityPerformance])
 
-  const handleExport = async () => {
+  const handleSummaryExport = async () => {
     if (!canExportPdf || isExporting) return
 
-    setIsExporting(true)
+    setExportMode('summary')
 
     try {
       await generateMysteryShopperPdf({
-        shoppers,
         visits,
         issues,
         evaluationCriteria,
         showPointsSection: SHOW_POINTS_SECTION,
       })
 
-      setToast({ type: 'success', message: 'تم تصدير التقرير بنجاح' })
+      setToast({ type: 'success', message: 'تم إصدار التقرير بنجاح' })
     } catch {
       setToast({ type: 'error', message: 'تعذر إنشاء التقرير، حاول مرة أخرى' })
     } finally {
-      setIsExporting(false)
+      setExportMode('')
+    }
+  }
+
+  const handleDetailedExport = async () => {
+    if (!canExportPdf || isExporting) return
+
+    setExportMode('detailed')
+
+    try {
+      await generateMysteryShopperDetailedPdf({
+        visits,
+        issues,
+        evaluationCriteria,
+        showPointsSection: SHOW_POINTS_SECTION,
+      })
+
+      setToast({ type: 'success', message: 'تم إصدار التقرير التفصيلي بنجاح' })
+    } catch {
+      setToast({ type: 'error', message: 'تعذر إنشاء التقرير التفصيلي، حاول مرة أخرى' })
+    } finally {
+      setExportMode('')
     }
   }
 
@@ -222,24 +246,45 @@ export default function Reports() {
           </div>
 
           {canExportPdf && (
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={isExporting}
-              className="ms-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isExporting ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                  جاري إنشاء التقرير...
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4" />
-                  تصدير التقرير
-                </>
-              )}
-            </button>
+            <div className="ms-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSummaryExport}
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {exportMode === 'summary' ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    جاري إصدار التقرير...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    إصدار تقرير
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDetailedExport}
+                disabled={isExporting}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {exportMode === 'detailed' ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    جاري إصدار التقرير التفصيلي...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    إصدار تقرير تفصيلي
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
 

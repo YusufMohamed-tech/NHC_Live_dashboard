@@ -458,18 +458,6 @@ function drawShareBars(doc, { x, y, width, height, fontFamily, data }) {
   })
 }
 
-function qualityLabel(score) {
-  if (score >= 4) return 'ممتاز'
-  if (score >= 2.5) return 'متوسط'
-  return 'ضعيف'
-}
-
-function qualityColor(score) {
-  if (score >= 4) return [16, 185, 129]
-  if (score >= 2.5) return [245, 158, 11]
-  return [244, 63, 94]
-}
-
 function noDataRow(doc, columnsCount) {
   if (columnsCount <= 0) return []
 
@@ -516,31 +504,21 @@ function addDashboardPage(doc, { assets, fontFamily, analytics, showPointsSectio
 
   drawPdfReportHeader(doc, assets, { pageWidth, y: 0, withBackground: true })
 
-  setFont(doc, fontFamily, 20)
-  setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'لوحة ذكاء الأعمال للزيارات'), pageWidth - 24, 108, { align: 'right' })
-
-  setFont(doc, fontFamily, 10)
-  setTextColor(doc, TEXT_MUTED)
-  doc.text(rtlText(doc, 'نفس مؤشرات النظام مع عرض بصري مشابه Power BI'), pageWidth - 24, 124, {
-    align: 'right',
-  })
-
   if (showPointsSection) {
     doc.setFillColor(254, 249, 195)
     doc.setDrawColor(253, 224, 71)
-    doc.roundedRect(24, 92, 180, 24, 12, 12, 'FD')
+    doc.roundedRect(24, 88, 180, 24, 12, 12, 'FD')
 
     setFont(doc, fontFamily, 9)
     setTextColor(doc, [146, 64, 14])
-    doc.text(rtlText(doc, `إجمالي نقاط الزيارات: ${totalVisitPoints}`), 114, 108, {
+    doc.text(rtlText(doc, `إجمالي نقاط الزيارات: ${totalVisitPoints}`), 114, 104, {
       align: 'center',
     })
   }
 
   const contentX = 20
   const contentWidth = pageWidth - 40
-  const cardsY = 134
+  const cardsY = 116
   const cardHeight = 74
   const cardGap = 10
   const cardWidth = (contentWidth - cardGap * 3) / 4
@@ -807,6 +785,65 @@ export async function generateMysteryShopperPdf({
     margin: { left: 40, right: 40 },
   })
 
+  addPageHeaderFooter(doc, generatedAtText, assets)
+
+  const exportDate = formatExportDate(generatedAt)
+  const fileName = `NHC-Visits-Analytics-Report-${exportDate}.pdf`
+  doc.save(fileName)
+}
+
+export async function generateMysteryShopperDetailedPdf({
+  visits,
+  issues,
+  evaluationCriteria,
+  showPointsSection = true,
+  generatedAt = new Date(),
+}) {
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'pt',
+    format: 'a4',
+  })
+
+  const generatedAtText = formatArabicDate(generatedAt)
+  const assets = await loadReportBrandingAssets(doc)
+  const fontFamily = assets.fontFamily
+  setFont(doc, fontFamily, 12)
+
+  const analytics = buildVisitAnalytics({ visits, issues, evaluationCriteria })
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  doc.setFillColor(255, 255, 255)
+  doc.rect(0, 0, pageWidth, pageHeight, 'F')
+
+  drawPdfReportHeader(doc, assets, { pageWidth, y: 0, withBackground: true })
+
+  setFont(doc, fontFamily, 28)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'تقرير الزيارات التفصيلي'), pageWidth - 40, 170, { align: 'right' })
+
+  setFont(doc, fontFamily, 14)
+  setTextColor(doc, TEXT_MUTED)
+  doc.text(rtlText(doc, 'سجل الزيارات التفصيلي'), pageWidth - 40, 205, {
+    align: 'right',
+  })
+
+  setFont(doc, fontFamily, 12)
+  doc.text(rtlText(doc, `تاريخ الإنشاء: ${generatedAtText}`), pageWidth - 40, 235, {
+    align: 'right',
+  })
+
+  doc.setFillColor(254, 242, 242)
+  doc.setDrawColor(244, 63, 94)
+  doc.roundedRect(pageWidth - 310, 265, 270, 30, 15, 15, 'FD')
+  doc.setTextColor(190, 24, 93)
+  setFont(doc, fontFamily, 12)
+  doc.text(rtlText(doc, 'سري - محمي باتفاقية عدم الإفصاح'), pageWidth - 175, 285, {
+    align: 'center',
+  })
+
   doc.addPage('a4', 'p')
 
   setFont(doc, fontFamily, 22)
@@ -850,7 +887,16 @@ export async function generateMysteryShopperPdf({
     head: [visitsHead],
     body: visitsRows.length > 0 ? visitsRows : [noDataRow(doc, visitsHead.length)],
     theme: 'grid',
-    styles: { ...tableStyles, fontSize: 9, cellPadding: 5 },
+    styles: {
+      font: fontFamily,
+      fontStyle: 'normal',
+      halign: 'right',
+      valign: 'middle',
+      fontSize: 9,
+      textColor: [30, 41, 59],
+      cellPadding: 5,
+      overflow: 'linebreak',
+    },
     headStyles: {
       fillColor: PRIMARY,
       textColor: [255, 255, 255],
@@ -865,148 +911,9 @@ export async function generateMysteryShopperPdf({
     margin: { left: 30, right: 30 },
   })
 
-  doc.addPage('a4', 'p')
-
-  setFont(doc, fontFamily, 22)
-  setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'تحليل المناطق'), pageWidth - 40, SUBPAGE_TITLE_Y, { align: 'right' })
-
-  const cityRows = analytics.cityPerformance.map((row) => [
-    rtlText(doc, row.city),
-    String(row.total),
-    String(row.completed),
-    `${row.completionRate}%`,
-    `${row.average.toFixed(2)} / 5`,
-    String(row.issues),
-  ])
-
-  autoTable(doc, {
-    startY: SUBPAGE_TABLE_START_Y,
-    head: [
-      [
-        rtlText(doc, 'المدينة'),
-        rtlText(doc, 'إجمالي الزيارات'),
-        rtlText(doc, 'المكتملة'),
-        rtlText(doc, 'معدل الإنجاز'),
-        rtlText(doc, 'متوسط التقييم'),
-        rtlText(doc, 'التحديات'),
-      ],
-    ],
-    body: cityRows.length > 0 ? cityRows : [noDataRow(doc, 6)],
-    theme: 'grid',
-    styles: { ...tableStyles, fontSize: 10, cellPadding: 6 },
-    headStyles: {
-      fillColor: PRIMARY,
-      textColor: [255, 255, 255],
-      font: fontFamily,
-      fontStyle: 'normal',
-      halign: 'right',
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    margin: { left: 28, right: 28 },
-  })
-
-  doc.addPage('a4', 'p')
-
-  setFont(doc, fontFamily, 22)
-  setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'سجل التحديات'), pageWidth - 40, SUBPAGE_TITLE_Y, { align: 'right' })
-
-  const issuesRows = analytics.issueRecords.map((issue) => [
-    rtlText(doc, issue.severity),
-    rtlText(doc, issue.description),
-    rtlText(doc, issue.officeName),
-    rtlText(doc, issue.city),
-    rtlText(doc, issue.date),
-  ])
-
-  autoTable(doc, {
-    startY: SUBPAGE_TABLE_START_Y,
-    head: [
-      [
-        rtlText(doc, 'الحدة'),
-        rtlText(doc, 'الوصف'),
-        rtlText(doc, 'الفرع'),
-        rtlText(doc, 'المدينة'),
-        rtlText(doc, 'التاريخ'),
-      ],
-    ],
-    body: issuesRows.length > 0 ? issuesRows : [noDataRow(doc, 5)],
-    theme: 'grid',
-    styles: { ...tableStyles, fontSize: 9, cellPadding: 5 },
-    headStyles: {
-      fillColor: PRIMARY,
-      textColor: [255, 255, 255],
-      font: fontFamily,
-      fontStyle: 'normal',
-      halign: 'right',
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    margin: { left: 28, right: 28 },
-    columnStyles: {
-      0: { cellWidth: 58 },
-      1: { cellWidth: 180 },
-      2: { cellWidth: 108 },
-      3: { cellWidth: 72 },
-      4: { cellWidth: 72 },
-    },
-  })
-
-  doc.addPage('a4', 'p')
-
-  setFont(doc, fontFamily, 22)
-  setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'متوسط درجات المعايير'), pageWidth - 40, SUBPAGE_TITLE_Y, {
-    align: 'right',
-  })
-
-  const criteriaRows = analytics.criteriaPerformance.map((row) => {
-    const score = Number(row.average ?? 0)
-
-    return [
-      rtlText(doc, row.label),
-      `${score.toFixed(2)} / 5`,
-      rtlText(doc, qualityLabel(score)),
-    ]
-  })
-
-  autoTable(doc, {
-    startY: SUBPAGE_TABLE_START_Y,
-    head: [[rtlText(doc, 'المعيار'), rtlText(doc, 'متوسط الدرجة'), rtlText(doc, 'مؤشر الجودة')]],
-    body: criteriaRows.length > 0 ? criteriaRows : [noDataRow(doc, 3)],
-    theme: 'grid',
-    styles: { ...tableStyles, fontSize: 11, cellPadding: 7 },
-    headStyles: {
-      fillColor: PRIMARY,
-      textColor: [255, 255, 255],
-      font: fontFamily,
-      fontStyle: 'normal',
-      halign: 'right',
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    didParseCell: (hookData) => {
-      if (hookData.section !== 'body' || hookData.column.index !== 2) return
-
-      const score = Number(analytics.criteriaPerformance[hookData.row.index]?.average ?? 0)
-      const color = qualityColor(score)
-      hookData.cell.styles.fillColor = color
-      hookData.cell.styles.textColor = [255, 255, 255]
-      hookData.cell.styles.fontStyle = 'normal'
-      hookData.cell.styles.halign = 'center'
-      hookData.cell.text = [rtlText(doc, hookData.cell.text?.[0] ?? '')]
-    },
-    margin: { left: 40, right: 40 },
-  })
-
   addPageHeaderFooter(doc, generatedAtText, assets)
 
   const exportDate = formatExportDate(generatedAt)
-  const fileName = `NHC-Visits-Analytics-Report-${exportDate}.pdf`
+  const fileName = `NHC-Visits-Detailed-Report-${exportDate}.pdf`
   doc.save(fileName)
 }
