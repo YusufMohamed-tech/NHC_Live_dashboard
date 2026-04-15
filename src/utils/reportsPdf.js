@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { calculateWeightedScore } from './scoring'
+import { buildVisitAnalytics } from './visitAnalytics'
 
 const PRIMARY = [79, 70, 229]
 const PRIMARY_DEEP = [55, 48, 163]
@@ -253,48 +254,14 @@ export async function generateMysteryShopperPdf({
   const brandAssets = await loadReportBrandingAssets(doc)
   setFont(doc, brandAssets.fontFamily, 12)
 
+  const analytics = buildVisitAnalytics({ visits, issues, evaluationCriteria })
+
   const completedVisits = visits.filter((visit) => visit.status === 'مكتملة')
-  const pendingVisits = visits.filter((visit) => visit.status === 'معلقة')
-  const upcomingVisits = visits.filter((visit) => visit.status === 'قادمة')
+  const averageRating = analytics.averageScore
 
-  const averageRating = completedVisits.length
-    ? completedVisits.reduce(
-        (sum, visit) => sum + calculateWeightedScore(visit.scores ?? {}),
-        0,
-      ) / completedVisits.length
-    : 0
-
-  const issueSummary = {
-    simple: issues.filter((issue) => issue.severity === 'بسيطة').length,
-    medium: issues.filter((issue) => issue.severity === 'متوسطة').length,
-    critical: issues.filter((issue) => issue.severity === 'خطيرة').length,
-  }
-
-  const totalDistributedPoints = shoppers.reduce(
-    (sum, shopper) => sum + Number(shopper.points ?? 0),
-    0,
-  )
-
-  const shopperRows = shoppers.map((shopper) => {
-    const shopperVisits = visits.filter((visit) => visit.assignedShopperId === shopper.id)
-    const shopperCompleted = shopperVisits.filter((visit) => visit.status === 'مكتملة')
-
-    const avgScore = shopperCompleted.length
-      ? shopperCompleted.reduce(
-          (sum, visit) => sum + calculateWeightedScore(visit.scores ?? {}),
-          0,
-        ) / shopperCompleted.length
-      : 0
-
-    return {
-      name: shopper.name,
-      city: shopper.city,
-      visitsCount: shopperVisits.length,
-      avgScore,
-      points: Number(shopper.points ?? 0),
-      status: shopper.status,
-    }
-  })
+  const totalVisitPoints = visits.reduce((sum, visit) => {
+    return sum + Number(visit.pointsEarned ?? 0)
+  }, 0)
 
   const criteriaRows = evaluationCriteria.map((criterion) => {
     const average = completedVisits.length
@@ -341,7 +308,7 @@ export async function generateMysteryShopperPdf({
 
   setFont(doc, brandAssets.fontFamily, 14)
   setTextColor(doc, TEXT_MUTED)
-  doc.text(rtlText(doc, 'تقرير متابعة أداء الزيارات والمتسوقين'), width - 40, 205, {
+  doc.text(rtlText(doc, 'تقرير متابعة وتحليل الزيارات الميدانية'), width - 40, 205, {
     align: 'right',
   })
 
@@ -368,17 +335,18 @@ export async function generateMysteryShopperPdf({
   const summaryRows = [
     [rtlText(doc, 'إجمالي الزيارات'), String(visits.length)],
     [rtlText(doc, 'الزيارات المكتملة'), String(completedVisits.length)],
-    [rtlText(doc, 'الزيارات الجديدة'), String(pendingVisits.length)],
-    [rtlText(doc, 'إعادة الزيارة'), String(upcomingVisits.length)],
+    [rtlText(doc, 'الزيارات الجديدة'), String(analytics.statusCounts.pending)],
+    [rtlText(doc, 'إعادة الزيارة'), String(analytics.statusCounts.upcoming)],
+    [rtlText(doc, 'طلبات المسح'), String(analytics.statusCounts.deleting)],
     [rtlText(doc, 'متوسط التقييم'), `${averageRating.toFixed(2)} / 5`],
-    [rtlText(doc, 'إجمالي التحديات'), String(issues.length)],
-    [rtlText(doc, 'تحديات بسيطة'), String(issueSummary.simple)],
-    [rtlText(doc, 'تحديات متوسطة'), String(issueSummary.medium)],
-    [rtlText(doc, 'تحديات خطيرة'), String(issueSummary.critical)],
+    [rtlText(doc, 'إجمالي التحديات'), String(analytics.issueSummary.total)],
+    [rtlText(doc, 'تحديات بسيطة'), String(analytics.issueSummary.simple)],
+    [rtlText(doc, 'تحديات متوسطة'), String(analytics.issueSummary.medium)],
+    [rtlText(doc, 'تحديات خطيرة'), String(analytics.issueSummary.critical)],
   ]
 
   if (showPointsSection) {
-    summaryRows.push([rtlText(doc, 'إجمالي النقاط الموزعة'), String(totalDistributedPoints)])
+    summaryRows.push([rtlText(doc, 'إجمالي نقاط الزيارات'), String(totalVisitPoints)])
   }
 
   autoTable(doc, {
@@ -461,42 +429,30 @@ export async function generateMysteryShopperPdf({
 
   setFont(doc, brandAssets.fontFamily, 22)
   setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'جدول المتسوقين'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
+  doc.text(rtlText(doc, 'تحليل المناطق'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
 
-  const shoppersRows = shopperRows.map((row) => {
-    const shopperRow = [
-      rtlText(doc, row.name),
-      rtlText(doc, row.city),
-      String(row.visitsCount),
-      row.avgScore.toFixed(2),
-    ]
-
-    if (showPointsSection) {
-      shopperRow.push(String(row.points))
-    }
-
-    shopperRow.push(rtlText(doc, row.status))
-
-    return shopperRow
-  })
-
-  const shoppersHead = [
-    rtlText(doc, 'المتسوق'),
-    rtlText(doc, 'المدينة'),
-    rtlText(doc, 'الزيارات'),
-    rtlText(doc, 'متوسط التقييم'),
-  ]
-
-  if (showPointsSection) {
-    shoppersHead.push(rtlText(doc, 'النقاط'))
-  }
-
-  shoppersHead.push(rtlText(doc, 'الحالة'))
+  const cityRows = analytics.cityPerformance.map((row) => [
+    rtlText(doc, row.city),
+    String(row.total),
+    String(row.completed),
+    `${row.completionRate}%`,
+    `${row.average.toFixed(2)} / 5`,
+    String(row.issues),
+  ])
 
   autoTable(doc, {
     startY: SUBPAGE_TABLE_START_Y,
-    head: [shoppersHead],
-    body: shoppersRows.length > 0 ? shoppersRows : [noDataRow(shoppersHead.length)],
+    head: [
+      [
+        rtlText(doc, 'المدينة'),
+        rtlText(doc, 'إجمالي الزيارات'),
+        rtlText(doc, 'المكتملة'),
+        rtlText(doc, 'معدل الإنجاز'),
+        rtlText(doc, 'متوسط التقييم'),
+        rtlText(doc, 'التحديات'),
+      ],
+    ],
+    body: cityRows.length > 0 ? cityRows : [noDataRow(6)],
     theme: 'grid',
     styles: { ...tableStyles, fontSize: 10, cellPadding: 6 },
     headStyles: {
@@ -509,7 +465,55 @@ export async function generateMysteryShopperPdf({
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
-    margin: { left: 40, right: 40 },
+    margin: { left: 28, right: 28 },
+  })
+
+  doc.addPage()
+
+  setFont(doc, brandAssets.fontFamily, 22)
+  setTextColor(doc, TEXT_DARK)
+  doc.text(rtlText(doc, 'سجل التحديات'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
+
+  const issuesRows = analytics.issueRecords.map((issue) => [
+    rtlText(doc, issue.severity),
+    rtlText(doc, issue.description),
+    rtlText(doc, issue.officeName),
+    rtlText(doc, issue.city),
+    rtlText(doc, issue.date),
+  ])
+
+  autoTable(doc, {
+    startY: SUBPAGE_TABLE_START_Y,
+    head: [
+      [
+        rtlText(doc, 'الحدة'),
+        rtlText(doc, 'الوصف'),
+        rtlText(doc, 'الفرع'),
+        rtlText(doc, 'المدينة'),
+        rtlText(doc, 'التاريخ'),
+      ],
+    ],
+    body: issuesRows.length > 0 ? issuesRows : [noDataRow(5)],
+    theme: 'grid',
+    styles: { ...tableStyles, fontSize: 9, cellPadding: 5 },
+    headStyles: {
+      fillColor: PRIMARY,
+      textColor: [255, 255, 255],
+      font: brandAssets.fontFamily,
+      fontStyle: 'normal',
+      halign: 'right',
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    margin: { left: 28, right: 28 },
+    columnStyles: {
+      0: { cellWidth: 58 },
+      1: { cellWidth: 180 },
+      2: { cellWidth: 108 },
+      3: { cellWidth: 72 },
+      4: { cellWidth: 72 },
+    },
   })
 
   doc.addPage()

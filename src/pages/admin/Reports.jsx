@@ -1,49 +1,128 @@
-import { BarChart3, Download, LoaderCircle } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarCheck2,
+  Download,
+  Gauge,
+  LoaderCircle,
+  MapPinned,
+  TrendingUp,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
 import ReportHeader from '../../components/ReportHeader'
+import StatusBadge from '../../components/StatusBadge'
+import useDashboardStats from '../../hooks/useDashboardStats'
 import { generateMysteryShopperPdf } from '../../utils/reportsPdf'
-import { calculateWeightedScore } from '../../utils/scoring'
+import { buildVisitAnalytics } from '../../utils/visitAnalytics'
 
 const SHOW_POINTS_SECTION = import.meta.env.DEV
 
 const subTabs = [
-  { key: 'overview', label: 'نظرة عامة' },
-  { key: 'offices', label: 'تقرير الفروع' },
-  { key: 'shoppers', label: 'تقرير المتسوقين' },
-  { key: 'issues', label: 'تقرير التحديات' },
+  { key: 'overview', label: 'لوحة الزيارات' },
+  { key: 'visits', label: 'سجل الزيارات' },
+  { key: 'regions', label: 'تحليل المناطق' },
+  { key: 'issues', label: 'التحديات' },
 ]
 
-function getSeverityClasses(severity) {
-  if (severity === 'خطيرة') return 'bg-rose-100 text-rose-700 border-rose-200'
-  if (severity === 'متوسطة') return 'bg-amber-100 text-amber-700 border-amber-200'
-  return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+const kpiToneClasses = {
+  emerald: {
+    card: 'border-emerald-200 bg-emerald-50',
+    icon: 'bg-emerald-600 text-white',
+    value: 'text-emerald-800',
+  },
+  indigo: {
+    card: 'border-indigo-200 bg-indigo-50',
+    icon: 'bg-indigo-600 text-white',
+    value: 'text-indigo-800',
+  },
+  sky: {
+    card: 'border-sky-200 bg-sky-50',
+    icon: 'bg-sky-600 text-white',
+    value: 'text-sky-800',
+  },
+  rose: {
+    card: 'border-rose-200 bg-rose-50',
+    icon: 'bg-rose-600 text-white',
+    value: 'text-rose-800',
+  },
 }
 
 function getScoreCellClasses(score) {
-  if (score >= 4) return 'bg-emerald-100 text-emerald-700'
-  if (score >= 1) return 'bg-amber-100 text-amber-700'
-  return 'bg-rose-100 text-rose-700'
+  if (score >= 4) return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+  if (score >= 2.5) return 'bg-amber-100 text-amber-700 border-amber-200'
+  return 'bg-rose-100 text-rose-700 border-rose-200'
+}
+
+function KpiCard({ title, value, hint, icon, tone = 'emerald' }) {
+  const Icon = icon
+  const classes = kpiToneClasses[tone] ?? kpiToneClasses.emerald
+
+  return (
+    <article className={`rounded-xl border p-4 ${classes.card}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold text-slate-600">{title}</p>
+          <p className={`mt-2 text-3xl font-black ${classes.value}`}>{value}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">{hint}</p>
+        </div>
+        <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${classes.icon}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+    </article>
+  )
+}
+
+function ChartCard({ title, subtitle, icon, children }) {
+  const Icon = icon
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="font-display text-lg font-black text-slate-900">{title}</h3>
+          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+        </div>
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+
+      <div className="mt-4 h-72">{children}</div>
+    </article>
+  )
 }
 
 export default function Reports() {
-  const { user, shoppers, visits, issues, offices, evaluationCriteria, dataLoading, dataError } =
-    useOutletContext()
+  const {
+    user,
+    shoppers,
+    visits,
+    issues,
+    evaluationCriteria,
+    dataLoading,
+    dataError,
+  } = useOutletContext()
 
   const [activeSubTab, setActiveSubTab] = useState('overview')
   const [isExporting, setIsExporting] = useState(false)
   const [toast, setToast] = useState({ type: '', message: '' })
-  const chartContainerRef = useRef(null)
-  const [chartWidth, setChartWidth] = useState(0)
 
   useEffect(() => {
     if (!toast.message) return undefined
@@ -55,168 +134,32 @@ export default function Reports() {
     return () => window.clearTimeout(timeout)
   }, [toast])
 
-  useEffect(() => {
-    if (activeSubTab !== 'shoppers') return undefined
+  const dashboardStats = useDashboardStats({ shoppers, visits, issues })
 
-    const element = chartContainerRef.current
-    if (!element) return undefined
-
-    const updateWidth = () => {
-      const nextWidth = Math.floor(element.getBoundingClientRect().width)
-      setChartWidth(nextWidth > 0 ? nextWidth : 0)
-    }
-
-    updateWidth()
-
-    let observer = null
-    if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(updateWidth)
-      observer.observe(element)
-    }
-
-    window.addEventListener('resize', updateWidth)
-
-    return () => {
-      window.removeEventListener('resize', updateWidth)
-      observer?.disconnect()
-    }
-  }, [activeSubTab])
-
-  const completedVisits = useMemo(
-    () => visits.filter((visit) => visit.status === 'مكتملة'),
-    [visits],
+  const analytics = useMemo(
+    () => buildVisitAnalytics({ visits, issues, evaluationCriteria }),
+    [evaluationCriteria, issues, visits],
   )
 
-  const completionRate = visits.length
-    ? Math.round((completedVisits.length / visits.length) * 100)
-    : 0
-
-  const averageRating = completedVisits.length
-    ? completedVisits.reduce(
-        (sum, visit) => sum + calculateWeightedScore(visit.scores),
-        0,
-      ) / completedVisits.length
-    : 0
-
-  const issueRecords = useMemo(() => {
-    return issues
-  }, [issues])
-
-  const issueSummary = {
-    total: issueRecords.length,
-    simple: issueRecords.filter((issue) => issue.severity === 'بسيطة').length,
-    medium: issueRecords.filter((issue) => issue.severity === 'متوسطة').length,
-    critical: issueRecords.filter((issue) => issue.severity === 'خطيرة').length,
-  }
-
-  const criteriaAverages = useMemo(() => {
-    return evaluationCriteria.map((criterion) => {
-      const avg = completedVisits.length
-        ? completedVisits.reduce(
-            (sum, visit) => sum + Number(visit.scores[criterion.key] ?? 0),
-            0,
-          ) / completedVisits.length
-        : 0
-
-      return { ...criterion, average: Number(avg.toFixed(2)) }
-    })
-  }, [completedVisits, evaluationCriteria])
-
-  const cityPerformance = useMemo(() => {
-    const cityMap = new Map()
-
-    visits.forEach((visit) => {
-      if (!cityMap.has(visit.city)) {
-        cityMap.set(visit.city, [])
-      }
-
-      cityMap.get(visit.city).push(visit)
-    })
-
-    return Array.from(cityMap.entries()).map(([city, cityVisits]) => {
-      const completedInCity = cityVisits.filter((visit) => visit.status === 'مكتملة')
-      const cityAvg = completedInCity.length
-        ? completedInCity.reduce(
-            (sum, visit) => sum + calculateWeightedScore(visit.scores),
-            0,
-          ) / completedInCity.length
-        : 0
-
-      return {
-        city,
-        total: cityVisits.length,
-        completed: completedInCity.length,
-        average: Number(cityAvg.toFixed(2)),
-      }
-    })
-  }, [visits])
-
-  const shopperRows = useMemo(() => {
-    return shoppers.map((shopper) => {
-      const shopperVisits = visits.filter((visit) => visit.assignedShopperId === shopper.id)
-      const shopperCompleted = shopperVisits.filter((visit) => visit.status === 'مكتملة')
-      const avg = shopperCompleted.length
-        ? shopperCompleted.reduce(
-            (sum, visit) => sum + calculateWeightedScore(visit.scores),
-            0,
-          ) / shopperCompleted.length
-        : 0
-
-      return {
-        ...shopper,
-        visitsCount: shopperVisits.length,
-        averageRating: Number(avg.toFixed(2)),
-      }
-    })
-  }, [shoppers, visits])
-
-  const officesRows = useMemo(() => {
-    return offices
-      .map((office) => {
-        const officeVisits = visits.filter((visit) => visit.officeName === office.name)
-        const officeCompleted = officeVisits.filter((visit) => visit.status === 'مكتملة')
-        const avg = officeCompleted.length
-          ? officeCompleted.reduce(
-              (sum, visit) => sum + calculateWeightedScore(visit.scores),
-              0,
-            ) / officeCompleted.length
-          : 0
-
-        const criteriaScores = evaluationCriteria.map((criterion) => {
-          const criterionAvg = officeCompleted.length
-            ? officeCompleted.reduce(
-                (sum, visit) => sum + Number(visit.scores[criterion.key] ?? 0),
-                0,
-              ) / officeCompleted.length
-            : 0
-
-          return {
-            label: criterion.label,
-            avg: Number(criterionAvg.toFixed(2)),
-          }
-        })
-
-        const sortedCriteria = [...criteriaScores].sort((first, second) => second.avg - first.avg)
-
-        return {
-          officeName: office.name,
-          city: office.city,
-          visitsCount: officeVisits.length,
-          average: Number(avg.toFixed(2)),
-          best: sortedCriteria[0]?.label ?? '-',
-          weak: sortedCriteria[sortedCriteria.length - 1]?.label ?? '-',
-        }
-      })
-      .sort((first, second) => second.average - first.average)
-  }, [offices, visits, evaluationCriteria])
-
-  const chartData = shopperRows.map((shopper) => ({
-    name: shopper.name.split(' ')[0],
-    points: shopper.points,
-  }))
-  const hasShopperChartData = chartData.length > 0
-
   const canExportPdf = ['superadmin', 'admin', 'ops'].includes(user?.role)
+
+  const regionsSummary = useMemo(() => {
+    const byVolume = analytics.cityPerformance[0] ?? null
+
+    const byScore = [...analytics.cityPerformance]
+      .filter((row) => row.completed > 0)
+      .sort((first, second) => second.average - first.average)[0] ?? null
+
+    const weakScore = [...analytics.cityPerformance]
+      .filter((row) => row.completed > 0)
+      .sort((first, second) => first.average - second.average)[0] ?? null
+
+    return {
+      byVolume,
+      byScore,
+      weakScore,
+    }
+  }, [analytics.cityPerformance])
 
   const handleExport = async () => {
     if (!canExportPdf || isExporting) return
@@ -248,8 +191,8 @@ export default function Reports() {
     return <ErrorState message={dataError} />
   }
 
-  if (shoppers.length === 0 && visits.length === 0) {
-    return <EmptyState icon={BarChart3} message="لا توجد بيانات كافية لعرض التقارير" />
+  if (visits.length === 0) {
+    return <EmptyState icon={BarChart3} message="لا توجد بيانات زيارات كافية لعرض التقارير" />
   }
 
   return (
@@ -272,8 +215,10 @@ export default function Reports() {
         <ReportHeader />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
-            <h2 className="font-display text-2xl font-black text-slate-900">التقارير والإحصائيات</h2>
-            <p className="text-sm text-slate-500">لوحات تحليلية تفصيلية لمتابعة الأداء</p>
+            <h2 className="font-display text-2xl font-black text-slate-900">تقارير الزيارات التحليلية</h2>
+            <p className="text-sm text-slate-500">
+              لوحة متابعة شبيهة بـ Power BI مبنية على نفس أرقام لوحة التحكم
+            </p>
           </div>
 
           {canExportPdf && (
@@ -319,176 +264,140 @@ export default function Reports() {
       {activeSubTab === 'overview' && (
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-              <p className="text-xs text-sky-700">الزيارات المكتملة</p>
-              <p className="mt-1 text-2xl font-black text-sky-800">{completedVisits.length}</p>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-xs text-emerald-700">متوسط التقييم</p>
-              <p className="mt-1 text-2xl font-black text-emerald-800">
-                {averageRating.toFixed(2)} / 5
-              </p>
-            </div>
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-              <p className="text-xs text-rose-700">التحديات</p>
-              <p className="mt-1 text-2xl font-black text-rose-800">{issueSummary.total}</p>
-            </div>
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-              <p className="text-xs text-indigo-700">معدل الإكمال</p>
-              <p className="mt-1 text-2xl font-black text-indigo-800">{completionRate}%</p>
-            </div>
+            <KpiCard
+              title="إجمالي الزيارات"
+              value={dashboardStats.totalVisits}
+              hint={`${analytics.statusCounts.pending + analytics.statusCounts.upcoming} زيارة نشطة`}
+              icon={CalendarCheck2}
+              tone="indigo"
+            />
+            <KpiCard
+              title="الزيارات المكتملة"
+              value={dashboardStats.completedVisits}
+              hint={`${analytics.statusCounts.deleting} طلب مسح`}
+              icon={Gauge}
+              tone="emerald"
+            />
+            <KpiCard
+              title="متوسط الأداء"
+              value={`${dashboardStats.avgRating.toFixed(2)} / 5`}
+              hint="متوسط تقييم الزيارات المكتملة"
+              icon={TrendingUp}
+              tone="sky"
+            />
+            <KpiCard
+              title="معدل الإنجاز"
+              value={`${dashboardStats.completionRate}%`}
+              hint={`${dashboardStats.issuesTotal} تحدي موثق`}
+              icon={AlertTriangle}
+              tone="rose"
+            />
           </div>
 
-          <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-display text-xl font-black text-slate-900">
-              متوسط التقييمات حسب المعايير
-            </h3>
-
-            <div className="mt-4 space-y-3">
-              {criteriaAverages.map((criterion) => {
-                const percentage = (criterion.average / 5) * 100
-                const colorClass =
-                  criterion.average >= 4
-                    ? 'bg-emerald-500'
-                    : criterion.average >= 2.5
-                      ? 'bg-amber-500'
-                      : 'bg-rose-500'
-
-                return (
-                  <div key={criterion.key}>
-                    <div className="mb-1 flex items-center justify-between text-sm text-slate-600">
-                      <span>{criterion.label}</span>
-                      <span>{criterion.average.toFixed(2)} / 5</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className={`h-full rounded-full ${colorClass}`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </article>
-
-          <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-              <h3 className="font-display text-lg font-black text-slate-900">الأداء حسب المدينة</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-100 text-slate-700">
-                  <tr>
-                    <th className="px-4 py-3 text-start font-black">المدينة</th>
-                    <th className="px-4 py-3 text-start font-black">إجمالي الزيارات</th>
-                    <th className="px-4 py-3 text-start font-black">المكتملة</th>
-                    <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cityPerformance.map((row, index) => (
-                    <tr
-                      key={row.city}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <ChartCard
+              title="الأداء حسب المنطقة"
+              subtitle="توزيع إجمالي الزيارات على المدن"
+              icon={MapPinned}
+            >
+              {analytics.cityShare.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analytics.cityShare}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={56}
+                      outerRadius={86}
+                      paddingAngle={2}
                     >
-                      <td className="px-4 py-3 text-slate-700">{row.city}</td>
-                      <td className="px-4 py-3 text-slate-700">{row.total}</td>
-                      <td className="px-4 py-3 text-slate-700">{row.completed}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${getScoreCellClasses(
-                            row.average,
-                          )}`}
-                        >
-                          {row.average.toFixed(2)} / 5
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-      )}
+                      {analytics.cityShare.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value} زيارة`, 'إجمالي الزيارات']} />
+                    <Legend verticalAlign="bottom" height={24} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="flex h-full items-center justify-center text-sm text-slate-500">
+                  لا توجد بيانات كافية لعرض الرسم.
+                </p>
+              )}
+            </ChartCard>
 
-      {activeSubTab === 'shoppers' && (
-        <section className="space-y-4">
-          {SHOW_POINTS_SECTION && (
-            <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-display text-xl font-black text-slate-900">
-                النقاط لكل متسوق
-              </h3>
-              <div ref={chartContainerRef} className="mt-4 h-80 w-full min-w-0">
-                {hasShopperChartData && chartWidth > 0 ? (
+            <ChartCard
+              title="أداء التقييم"
+              subtitle="متوسط التقييم الشهري للزيارات المكتملة"
+              icon={TrendingUp}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.performanceTrend} margin={{ top: 16, right: 20, left: 0, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis domain={[0, 5]} tickCount={6} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} / 5`, 'متوسط الأداء']} />
+                  <Line
+                    type="monotone"
+                    dataKey="averageScore"
+                    stroke="#0f766e"
+                    strokeWidth={3}
+                    dot={{ r: 3, fill: '#0f766e' }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            <ChartCard
+              title="التقييم حسب المنطقة"
+              subtitle="أفضل 8 مدن حسب متوسط التقييم"
+              icon={BarChart3}
+            >
+              {analytics.cityRatingBars.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    width={Math.max(280, chartWidth)}
-                    height={320}
-                    data={chartData}
-                    margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
+                    data={analytics.cityRatingBars}
+                    layout="vertical"
+                    margin={{ top: 6, right: 20, left: 12, bottom: 6 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
-                    <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" domain={[0, 5]} />
+                    <YAxis dataKey="city" type="category" width={84} />
+                    <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} / 5`, 'متوسط التقييم']} />
+                    <Bar dataKey="average" fill="#0f766e" radius={[0, 8, 8, 0]} />
                   </BarChart>
-                ) : (
-                  <p className="flex h-full items-center justify-center text-sm text-slate-500">
-                    لا توجد بيانات كافية لعرض الرسم البياني حالياً.
-                  </p>
-                )}
-              </div>
-            </article>
-          )}
+                </ResponsiveContainer>
+              ) : (
+                <p className="flex h-full items-center justify-center text-sm text-slate-500">
+                  لا توجد بيانات مكتملة كافية لعرض الرسم.
+                </p>
+              )}
+            </ChartCard>
 
-          <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-100 text-slate-700">
-                  <tr>
-                    <th className="px-4 py-3 text-start font-black">المتسوق</th>
-                    <th className="px-4 py-3 text-start font-black">الزيارات</th>
-                    <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
-                    {SHOW_POINTS_SECTION && <th className="px-4 py-3 text-start font-black">النقاط</th>}
-                    <th className="px-4 py-3 text-start font-black">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shopperRows.map((row, index) => (
-                    <tr
-                      key={row.id}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
-                    >
-                      <td className="px-4 py-3 font-semibold text-slate-900">{row.name}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.visitsCount}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.averageRating.toFixed(2)} / 5</td>
-                      {SHOW_POINTS_SECTION && <td className="px-4 py-3 font-bold text-amber-700">{row.points}</td>}
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${
-                            row.status === 'نشط'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
+            <ChartCard
+              title="عدد الزيارات"
+              subtitle="حجم الزيارات خلال آخر 6 أشهر"
+              icon={CalendarCheck2}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.volumeTrend} margin={{ top: 14, right: 16, left: 0, bottom: 6 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip formatter={(value) => [`${value} زيارة`, 'العدد']} />
+                  <Bar dataKey="visits" fill="#0f766e" radius={[8, 8, 0, 0]} maxBarSize={38} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
         </section>
       )}
 
-      {activeSubTab === 'offices' && (
+      {activeSubTab === 'visits' && (
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <h3 className="font-display text-lg font-black text-slate-900">ترتيب الفروع حسب التقييم</h3>
+            <h3 className="font-display text-lg font-black text-slate-900">سجل الزيارات التفصيلي</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -496,24 +405,38 @@ export default function Reports() {
                 <tr>
                   <th className="px-4 py-3 text-start font-black">الفرع</th>
                   <th className="px-4 py-3 text-start font-black">المدينة</th>
-                  <th className="px-4 py-3 text-start font-black">عدد الزيارات</th>
-                  <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
-                  <th className="px-4 py-3 text-start font-black">أفضل معيار</th>
-                  <th className="px-4 py-3 text-start font-black">أضعف معيار</th>
+                  <th className="px-4 py-3 text-start font-black">التاريخ</th>
+                  <th className="px-4 py-3 text-start font-black">الحالة</th>
+                  <th className="px-4 py-3 text-start font-black">التقييم</th>
+                  <th className="px-4 py-3 text-start font-black">التحديات</th>
+                  {SHOW_POINTS_SECTION && <th className="px-4 py-3 text-start font-black">النقاط</th>}
                 </tr>
               </thead>
               <tbody>
-                {officesRows.map((row, index) => (
+                {analytics.visitRows.map((visit, index) => (
                   <tr
-                    key={row.officeName}
+                    key={visit.id}
                     className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
                   >
-                    <td className="px-4 py-3 font-semibold text-slate-900">{row.officeName}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.city}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.visitsCount}</td>
-                    <td className="px-4 py-3 text-slate-600">{row.average.toFixed(2)} / 5</td>
-                    <td className="px-4 py-3 text-emerald-700">{row.best}</td>
-                    <td className="px-4 py-3 text-rose-700">{row.weak}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">{visit.officeName}</td>
+                    <td className="px-4 py-3 text-slate-600">{visit.city}</td>
+                    <td className="px-4 py-3 text-slate-600">{visit.date}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={visit.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
+                          visit.score,
+                        )}`}
+                      >
+                        {visit.score.toFixed(2)} / 5
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{visit.issuesCount}</td>
+                    {SHOW_POINTS_SECTION && (
+                      <td className="px-4 py-3 font-bold text-amber-700">{visit.pointsEarned}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -522,41 +445,122 @@ export default function Reports() {
         </section>
       )}
 
+      {activeSubTab === 'regions' && (
+        <section className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-bold text-slate-500">الأكثر نشاطاً</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">{regionsSummary.byVolume?.city ?? '-'}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {regionsSummary.byVolume ? `${regionsSummary.byVolume.total} زيارة` : 'لا توجد بيانات'}
+              </p>
+            </article>
+
+            <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-emerald-700">الأفضل تقييماً</p>
+              <p className="mt-1 text-2xl font-black text-emerald-800">{regionsSummary.byScore?.city ?? '-'}</p>
+              <p className="mt-1 text-xs text-emerald-700">
+                {regionsSummary.byScore
+                  ? `${regionsSummary.byScore.average.toFixed(2)} / 5`
+                  : 'لا توجد زيارات مكتملة'}
+              </p>
+            </article>
+
+            <article className="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-rose-700">فرصة تحسين</p>
+              <p className="mt-1 text-2xl font-black text-rose-800">{regionsSummary.weakScore?.city ?? '-'}</p>
+              <p className="mt-1 text-xs text-rose-700">
+                {regionsSummary.weakScore
+                  ? `${regionsSummary.weakScore.average.toFixed(2)} / 5`
+                  : 'لا توجد زيارات مكتملة'}
+              </p>
+            </article>
+          </div>
+
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <h3 className="font-display text-lg font-black text-slate-900">تحليل الزيارات حسب المنطقة</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th className="px-4 py-3 text-start font-black">المدينة</th>
+                    <th className="px-4 py-3 text-start font-black">إجمالي الزيارات</th>
+                    <th className="px-4 py-3 text-start font-black">المكتملة</th>
+                    <th className="px-4 py-3 text-start font-black">معدل الإنجاز</th>
+                    <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
+                    <th className="px-4 py-3 text-start font-black">التحديات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.cityPerformance.map((row, index) => (
+                    <tr
+                      key={row.city}
+                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-900">{row.city}</td>
+                      <td className="px-4 py-3 text-slate-600">{row.total}</td>
+                      <td className="px-4 py-3 text-slate-600">{row.completed}</td>
+                      <td className="px-4 py-3 text-slate-600">{row.completionRate}%</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
+                            row.average,
+                          )}`}
+                        >
+                          {row.average.toFixed(2)} / 5
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-rose-700">{row.issues}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      )}
+
       {activeSubTab === 'issues' && (
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs text-slate-500">إجمالي التحديات</p>
-              <p className="mt-1 text-2xl font-black text-slate-900">{issueSummary.total}</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">{analytics.issueSummary.total}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-xs text-emerald-700">بسيطة</p>
-              <p className="mt-1 text-2xl font-black text-emerald-800">{issueSummary.simple}</p>
+              <p className="mt-1 text-2xl font-black text-emerald-800">{analytics.issueSummary.simple}</p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-xs text-amber-700">متوسطة</p>
-              <p className="mt-1 text-2xl font-black text-amber-800">{issueSummary.medium}</p>
+              <p className="mt-1 text-2xl font-black text-amber-800">{analytics.issueSummary.medium}</p>
             </div>
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
               <p className="text-xs text-rose-700">خطيرة</p>
-              <p className="mt-1 text-2xl font-black text-rose-800">{issueSummary.critical}</p>
+              <p className="mt-1 text-2xl font-black text-rose-800">{analytics.issueSummary.critical}</p>
             </div>
           </div>
 
           <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-display text-xl font-black text-slate-900">قائمة التحديات الموثقة</h3>
+            <h3 className="font-display text-xl font-black text-slate-900">سجل التحديات المرتبطة بالزيارات</h3>
 
             <div className="mt-4 space-y-3">
-              {issueRecords.map((issue, index) => (
+              {analytics.issueRecords.map((issue, index) => (
                 <div
                   key={`${issue.visitId}-${issue.id}`}
                   className="rounded-xl border border-slate-200 bg-slate-50 p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full border px-3 py-1 text-xs font-bold ${getSeverityClasses(
-                        issue.severity,
-                      )}`}
+                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                        issue.severity === 'خطيرة'
+                          ? 'border-rose-200 bg-rose-100 text-rose-700'
+                          : issue.severity === 'متوسطة'
+                            ? 'border-amber-200 bg-amber-100 text-amber-700'
+                            : 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                      }`}
                     >
                       {issue.severity}
                     </span>
@@ -572,9 +576,9 @@ export default function Reports() {
                 </div>
               ))}
 
-              {issueRecords.length === 0 && (
+              {analytics.issueRecords.length === 0 && (
                 <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
-                  لا توجد مشاكل موثقة حالياً.
+                  لا توجد تحديات موثقة حالياً.
                 </p>
               )}
             </div>
