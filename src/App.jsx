@@ -806,7 +806,8 @@ function App() {
     return activeUser?.role === 'superadmin' || activeUser?.role === 'ops'
   }
 
-  const handleLogin = (email, password) => {
+  const handleLogin = (email, password, options = {}) => {
+    const commitSession = options.commit !== false
     const normalizedEmail = normalizeEmail(email)
 
     if (
@@ -821,8 +822,10 @@ function App() {
         role: 'superadmin',
       }
 
-      setAuthUser(payload)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      if (commitSession) {
+        setAuthUser(payload)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      }
       return payload
     }
 
@@ -841,8 +844,10 @@ function App() {
         role: 'superadmin',
       }
 
-      setAuthUser(payload)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      if (commitSession) {
+        setAuthUser(payload)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      }
       return payload
     }
 
@@ -862,8 +867,10 @@ function App() {
         assignedShopperIds: subAdmin.assignedShopperIds ?? [],
       }
 
-      setAuthUser(payload)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      if (commitSession) {
+        setAuthUser(payload)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      }
       return payload
     }
 
@@ -882,8 +889,10 @@ function App() {
         role: 'ops',
       }
 
-      setAuthUser(payload)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      if (commitSession) {
+        setAuthUser(payload)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      }
       return payload
     }
 
@@ -902,8 +911,10 @@ function App() {
         role: 'shopper',
       }
 
-      setAuthUser(payload)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      if (commitSession) {
+        setAuthUser(payload)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      }
       return payload
     }
 

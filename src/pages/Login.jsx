@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ClipboardCheck,
@@ -28,7 +28,7 @@ export default function Login({ onLogin }) {
     event.preventDefault()
     if (!portal) return
 
-    const user = onLogin(email, password)
+    const user = onLogin(email, password, { commit: false })
 
     if (!user) {
       setError('بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.')
@@ -45,17 +45,24 @@ export default function Login({ onLogin }) {
       return
     }
 
-    if (user.role === 'superadmin') {
+    const committedUser = onLogin(email, password, { commit: true })
+
+    if (!committedUser) {
+      setError('تعذر إتمام تسجيل الدخول. حاول مرة أخرى.')
+      return
+    }
+
+    if (committedUser.role === 'superadmin') {
       navigate('/superadmin/overview', { replace: true })
       return
     }
 
-    if (user.role === 'admin') {
+    if (committedUser.role === 'admin') {
       navigate('/admin/overview', { replace: true })
       return
     }
 
-    if (user.role === 'ops') {
+    if (committedUser.role === 'ops') {
       navigate('/ops/overview', { replace: true })
       return
     }
