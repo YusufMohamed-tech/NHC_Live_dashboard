@@ -41,7 +41,7 @@ export default function Login({ onLogin }) {
     }
 
     if (isManagerPortal && user.role === 'shopper') {
-      setError('هذا الحساب خاص بالمتسوق. اختر أيقونة متسوق سري.')
+      setError(' حاول مرة اخري')
       return
     }
 
