@@ -148,7 +148,6 @@ export default function Visits() {
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            title={!canAssignShopper ? 'سيتم التعيين لاحقاً بواسطة السوبر أدمن أو Ops' : undefined}
             className="ms-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
@@ -430,11 +429,7 @@ export default function Visits() {
                     ))}
                   </select>
                 </label>
-              ) : (
-                <p className="text-xs text-amber-700 sm:col-span-2">
-                  سيتم تعيين المتسوق لاحقاً بواسطة السوبر أدمن أو Ops.
-                </p>
-              )}
+              ) : null}
 
               <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
                 <span>شرح تفصيلي عن الزيارة (إن وجد)</span>

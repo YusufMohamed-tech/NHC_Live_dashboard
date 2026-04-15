@@ -191,10 +191,13 @@ function mapAdminRow(row) {
 }
 
 function mapShopperRow(row) {
+  const personalEmail = row.personal_email ?? row.secondary_email ?? ''
+
   return {
     id: row.id,
     name: row.name ?? '',
     email: normalizeEmail(row.email),
+    personalEmail: normalizeEmail(personalEmail),
     password: row.password ?? '',
     city: row.city ?? '',
     primaryPhone: row.primary_phone ?? row.phone_primary ?? row.phone ?? '',
@@ -1238,15 +1241,16 @@ function App() {
       assigned_admin_id: null,
     }
 
-    const shopperDataWithPhones = {
+    const shopperDataWithContacts = {
       ...baseShopperData,
+      personal_email: normalizeEmail(payload.personalEmail),
       primary_phone: String(payload.primaryPhone ?? '').trim(),
       whatsapp_phone: String(payload.whatsappPhone ?? '').trim(),
     }
 
     let { data: dbShopper, error } = await supabase
       .from('shoppers')
-      .insert([shopperDataWithPhones])
+      .insert([shopperDataWithContacts])
       .select()
       .single()
 
@@ -1293,6 +1297,10 @@ function App() {
       dbUpdates.whatsapp_phone = String(updates.whatsappPhone ?? '').trim()
     }
 
+    if (updates.personalEmail !== undefined) {
+      dbUpdates.personal_email = normalizeEmail(updates.personalEmail)
+    }
+
     let { data: dbShopper, error } = await supabase
       .from('shoppers')
       .update(dbUpdates)
@@ -1300,10 +1308,16 @@ function App() {
       .select()
       .single()
 
-    if (error && (Object.hasOwn(dbUpdates, 'primary_phone') || Object.hasOwn(dbUpdates, 'whatsapp_phone'))) {
+    if (
+      error &&
+      (Object.hasOwn(dbUpdates, 'primary_phone') ||
+        Object.hasOwn(dbUpdates, 'whatsapp_phone') ||
+        Object.hasOwn(dbUpdates, 'personal_email'))
+    ) {
       const fallbackUpdates = { ...dbUpdates }
       delete fallbackUpdates.primary_phone
       delete fallbackUpdates.whatsapp_phone
+      delete fallbackUpdates.personal_email
 
       const fallbackResult = await supabase
         .from('shoppers')

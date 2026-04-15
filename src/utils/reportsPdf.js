@@ -238,6 +238,7 @@ export async function generateMysteryShopperPdf({
   visits,
   issues,
   evaluationCriteria,
+  showPointsSection = true,
   generatedAt = new Date(),
 }) {
   const doc = new jsPDF({
@@ -374,8 +375,11 @@ export async function generateMysteryShopperPdf({
     [rtlText(doc, 'تحديات بسيطة'), String(issueSummary.simple)],
     [rtlText(doc, 'تحديات متوسطة'), String(issueSummary.medium)],
     [rtlText(doc, 'تحديات خطيرة'), String(issueSummary.critical)],
-    [rtlText(doc, 'إجمالي النقاط الموزعة'), String(totalDistributedPoints)],
   ]
+
+  if (showPointsSection) {
+    summaryRows.push([rtlText(doc, 'إجمالي النقاط الموزعة'), String(totalDistributedPoints)])
+  }
 
   autoTable(doc, {
     startY: SUBPAGE_TABLE_START_Y,
@@ -404,29 +408,39 @@ export async function generateMysteryShopperPdf({
 
   const visitsRows = visits.map((visit) => {
     const shopper = shoppers.find((item) => item.id === visit.assignedShopperId)
-    return [
+    const row = [
       rtlText(doc, visit.officeName),
       rtlText(doc, visit.city),
       rtlText(doc, visit.date),
       rtlText(doc, shopper?.name ?? '-'),
       calculateWeightedScore(visit.scores ?? {}).toFixed(2),
       rtlText(doc, visit.status),
-      String(Number(visit.pointsEarned ?? 0)),
     ]
+
+    if (showPointsSection) {
+      row.push(String(Number(visit.pointsEarned ?? 0)))
+    }
+
+    return row
   })
+
+  const visitsHead = [
+    rtlText(doc, 'الفرع'),
+    rtlText(doc, 'المدينة'),
+    rtlText(doc, 'التاريخ'),
+    rtlText(doc, 'المتسوق'),
+    rtlText(doc, 'التقييم'),
+    rtlText(doc, 'الحالة'),
+  ]
+
+  if (showPointsSection) {
+    visitsHead.push(rtlText(doc, 'النقاط'))
+  }
 
   autoTable(doc, {
     startY: SUBPAGE_TABLE_START_Y,
-    head: [[
-      rtlText(doc, 'الفرع'),
-      rtlText(doc, 'المدينة'),
-      rtlText(doc, 'التاريخ'),
-      rtlText(doc, 'المتسوق'),
-      rtlText(doc, 'التقييم'),
-      rtlText(doc, 'الحالة'),
-      rtlText(doc, 'النقاط'),
-    ]],
-    body: visitsRows.length > 0 ? visitsRows : [noDataRow(7)],
+    head: [visitsHead],
+    body: visitsRows.length > 0 ? visitsRows : [noDataRow(visitsHead.length)],
     theme: 'grid',
     styles: { ...tableStyles, fontSize: 9, cellPadding: 5 },
     headStyles: {
@@ -449,26 +463,40 @@ export async function generateMysteryShopperPdf({
   setTextColor(doc, TEXT_DARK)
   doc.text(rtlText(doc, 'جدول المتسوقين'), width - 40, SUBPAGE_TITLE_Y, { align: 'right' })
 
-  const shoppersRows = shopperRows.map((row) => [
-    rtlText(doc, row.name),
-    rtlText(doc, row.city),
-    String(row.visitsCount),
-    row.avgScore.toFixed(2),
-    String(row.points),
-    rtlText(doc, row.status),
-  ])
+  const shoppersRows = shopperRows.map((row) => {
+    const shopperRow = [
+      rtlText(doc, row.name),
+      rtlText(doc, row.city),
+      String(row.visitsCount),
+      row.avgScore.toFixed(2),
+    ]
+
+    if (showPointsSection) {
+      shopperRow.push(String(row.points))
+    }
+
+    shopperRow.push(rtlText(doc, row.status))
+
+    return shopperRow
+  })
+
+  const shoppersHead = [
+    rtlText(doc, 'المتسوق'),
+    rtlText(doc, 'المدينة'),
+    rtlText(doc, 'الزيارات'),
+    rtlText(doc, 'متوسط التقييم'),
+  ]
+
+  if (showPointsSection) {
+    shoppersHead.push(rtlText(doc, 'النقاط'))
+  }
+
+  shoppersHead.push(rtlText(doc, 'الحالة'))
 
   autoTable(doc, {
     startY: SUBPAGE_TABLE_START_Y,
-    head: [[
-      rtlText(doc, 'المتسوق'),
-      rtlText(doc, 'المدينة'),
-      rtlText(doc, 'الزيارات'),
-      rtlText(doc, 'متوسط التقييم'),
-      rtlText(doc, 'النقاط'),
-      rtlText(doc, 'الحالة'),
-    ]],
-    body: shoppersRows.length > 0 ? shoppersRows : [noDataRow(6)],
+    head: [shoppersHead],
+    body: shoppersRows.length > 0 ? shoppersRows : [noDataRow(shoppersHead.length)],
     theme: 'grid',
     styles: { ...tableStyles, fontSize: 10, cellPadding: 6 },
     headStyles: {

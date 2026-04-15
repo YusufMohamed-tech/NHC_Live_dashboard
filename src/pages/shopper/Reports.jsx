@@ -14,6 +14,8 @@ import { ErrorState, LoadingState } from '../../components/DataState'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 import { getFilePointsFromPath, normalizeVisitFileUrls } from '../../utils/visitFiles'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 function getScoreCardTheme(score) {
   if (score >= 4) {
     return {
@@ -176,7 +178,7 @@ export default function Reports() {
           نظرة شاملة على أدائك في برنامج المتحري الخفي
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`mt-4 grid gap-3 sm:grid-cols-2 ${SHOW_POINTS_SECTION ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
           <article className={`rounded-xl border p-4 ${summaryTheme.card}`}>
             <div className="flex items-center gap-2">
               <TrendingUp className={`h-4 w-4 ${summaryTheme.text}`} />
@@ -195,13 +197,15 @@ export default function Reports() {
             <p className="mt-1 text-2xl font-black text-sky-800">{totalVisits}</p>
           </article>
 
-          <article className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-center gap-2 text-amber-700">
-              <Crown className="h-4 w-4" />
-              <p className="text-xs">نقاطي الكلية</p>
-            </div>
-            <p className="mt-1 text-2xl font-black text-amber-800">{totalPoints}</p>
-          </article>
+          {SHOW_POINTS_SECTION && (
+            <article className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2 text-amber-700">
+                <Crown className="h-4 w-4" />
+                <p className="text-xs">نقاطي الكلية</p>
+              </div>
+              <p className="mt-1 text-2xl font-black text-amber-800">{totalPoints}</p>
+            </article>
+          )}
 
           <article className="rounded-xl border border-rose-200 bg-rose-50 p-4">
             <div className="flex items-center gap-2 text-rose-700">
@@ -264,9 +268,11 @@ export default function Reports() {
                     {score.toFixed(2)} / 5
                   </span>
 
-                  <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
-                    {visit.pointsEarned ?? 0} نقطة
-                  </span>
+                  {SHOW_POINTS_SECTION && (
+                    <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                      {visit.pointsEarned ?? 0} نقطة
+                    </span>
+                  )}
                 </div>
               </Link>
             )
@@ -280,33 +286,35 @@ export default function Reports() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="font-display text-xl font-black text-slate-900">تفاصيل نقاطي</h3>
+      {SHOW_POINTS_SECTION && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="font-display text-xl font-black text-slate-900">تفاصيل نقاطي</h3>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">نقاط إكمال الزيارات</p>
-            <p className="mt-1 text-xl font-black text-slate-900">{pointsBreakdown.completionPoints}</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">نقاط إكمال الزيارات</p>
+              <p className="mt-1 text-xl font-black text-slate-900">{pointsBreakdown.completionPoints}</p>
+            </div>
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+              <p className="text-xs text-sky-700">نقاط الصور والفيديو</p>
+              <p className="mt-1 text-xl font-black text-sky-800">{pointsBreakdown.mediaPoints}</p>
+            </div>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+              <p className="text-xs text-rose-700">نقاط التحديات الموثقة</p>
+              <p className="mt-1 text-xl font-black text-rose-800">{pointsBreakdown.issuePoints}</p>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-700">نقاط الجودة</p>
+              <p className="mt-1 text-xl font-black text-emerald-800">{pointsBreakdown.qualityPoints}</p>
+            </div>
           </div>
-          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-            <p className="text-xs text-sky-700">نقاط الصور والفيديو</p>
-            <p className="mt-1 text-xl font-black text-sky-800">{pointsBreakdown.mediaPoints}</p>
-          </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-            <p className="text-xs text-rose-700">نقاط التحديات الموثقة</p>
-            <p className="mt-1 text-xl font-black text-rose-800">{pointsBreakdown.issuePoints}</p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-xs text-emerald-700">نقاط الجودة</p>
-            <p className="mt-1 text-xl font-black text-emerald-800">{pointsBreakdown.qualityPoints}</p>
-          </div>
-        </div>
 
-        <div className="mt-4 rounded-xl border border-amber-300 bg-amber-100 p-4 text-center">
-          <p className="text-sm text-amber-700">إجمالي النقاط</p>
-          <p className="mt-1 text-3xl font-black text-amber-800">{totalPoints}</p>
-        </div>
-      </section>
+          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-100 p-4 text-center">
+            <p className="text-sm text-amber-700">إجمالي النقاط</p>
+            <p className="mt-1 text-3xl font-black text-amber-800">{totalPoints}</p>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h3 className="font-display text-xl font-black text-slate-900">إنجازاتي</h3>

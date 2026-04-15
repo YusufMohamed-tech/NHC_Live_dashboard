@@ -2,6 +2,8 @@ import { Coins, ShieldCheck, UserCircle2, Users } from 'lucide-react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '../../components/DataState'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 export default function Overview() {
   const navigate = useNavigate()
   const { subAdmins, shoppers, visits, dataLoading, dataError } = useOutletContext()
@@ -25,7 +27,7 @@ export default function Overview() {
         </p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className={`grid gap-3 sm:grid-cols-2 ${SHOW_POINTS_SECTION ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
         <article className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
           <p className="text-xs text-indigo-700">إجمالي المديرين</p>
           <p className="mt-1 text-2xl font-black text-indigo-800">{subAdmins.length}</p>
@@ -41,10 +43,12 @@ export default function Overview() {
           <p className="mt-1 text-2xl font-black text-emerald-800">{visits.length}</p>
         </article>
 
-        <article className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs text-amber-700">إجمالي النقاط الموزعة</p>
-          <p className="mt-1 text-2xl font-black text-amber-800">{totalPoints}</p>
-        </article>
+        {SHOW_POINTS_SECTION && (
+          <article className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs text-amber-700">إجمالي النقاط الموزعة</p>
+            <p className="mt-1 text-2xl font-black text-amber-800">{totalPoints}</p>
+          </article>
+        )}
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -117,7 +121,7 @@ export default function Overview() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2">
+      <section className={`grid gap-3 ${SHOW_POINTS_SECTION ? 'md:grid-cols-2' : ''}`}>
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-700">
             <ShieldCheck className="h-4 w-4" />
@@ -128,15 +132,17 @@ export default function Overview() {
           </p>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-700">
-            <Coins className="h-4 w-4" />
-            <h4 className="font-black">متوسط النقاط لكل متسوق</h4>
-          </div>
-          <p className="mt-2 text-2xl font-black text-slate-900">
-            {shoppers.length ? Math.round(totalPoints / shoppers.length) : 0}
-          </p>
-        </article>
+        {SHOW_POINTS_SECTION && (
+          <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Coins className="h-4 w-4" />
+              <h4 className="font-black">متوسط النقاط لكل متسوق</h4>
+            </div>
+            <p className="mt-2 text-2xl font-black text-slate-900">
+              {shoppers.length ? Math.round(totalPoints / shoppers.length) : 0}
+            </p>
+          </article>
+        )}
       </section>
     </div>
   )

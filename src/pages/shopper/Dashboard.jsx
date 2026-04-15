@@ -11,6 +11,8 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/DataState
 import PointsBadge from '../../components/PointsBadge'
 import ScoreBar from '../../components/ScoreBar'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 export default function Dashboard() {
   const { user, myVisits, dataLoading, dataError } = useOutletContext()
 
@@ -85,7 +87,7 @@ export default function Dashboard() {
               نشط الآن
             </span>
 
-            <PointsBadge points={user.points} className="ms-auto" />
+            {SHOW_POINTS_SECTION && <PointsBadge points={user.points} className="ms-auto" />}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -121,7 +123,7 @@ export default function Dashboard() {
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className={`grid gap-4 ${SHOW_POINTS_SECTION ? 'xl:grid-cols-2' : ''}`}>
         <article className="rounded-2xl bg-gradient-to-l from-rose-500 to-pink-500 p-5 text-white shadow-sm">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
@@ -134,17 +136,19 @@ export default function Dashboard() {
           </p>
         </article>
 
-        <article className="rounded-2xl bg-gradient-to-l from-amber-500 to-orange-500 p-5 text-white shadow-sm">
-          <div className="flex items-center gap-2">
-            <SquareCheckBig className="h-5 w-5" />
-            <h3 className="font-display text-xl font-black">إجمالي النقاط</h3>
-          </div>
-          <p className="mt-4 text-4xl font-black">{user.points}</p>
-          <p className="mt-1 text-sm text-white/90">بمتوسط {avgPointsPerVisit} لكل زيارة مكتملة</p>
-          <p className="mt-4 rounded-xl bg-white/15 px-3 py-2 text-sm">
-            أداء ممتاز! استمر بنفس الجودة للوصول إلى ترتيب أعلى.
-          </p>
-        </article>
+        {SHOW_POINTS_SECTION && (
+          <article className="rounded-2xl bg-gradient-to-l from-amber-500 to-orange-500 p-5 text-white shadow-sm">
+            <div className="flex items-center gap-2">
+              <SquareCheckBig className="h-5 w-5" />
+              <h3 className="font-display text-xl font-black">إجمالي النقاط</h3>
+            </div>
+            <p className="mt-4 text-4xl font-black">{user.points}</p>
+            <p className="mt-1 text-sm text-white/90">بمتوسط {avgPointsPerVisit} لكل زيارة مكتملة</p>
+            <p className="mt-4 rounded-xl bg-white/15 px-3 py-2 text-sm">
+              أداء ممتاز! استمر بنفس الجودة للوصول إلى ترتيب أعلى.
+            </p>
+          </article>
+        )}
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">

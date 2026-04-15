@@ -8,6 +8,8 @@ import StatusBadge from '../../components/StatusBadge'
 import VisitFilesUploader from '../../components/VisitFilesUploader'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 function makeInitialScores(visit, criteria) {
   if (!visit) return {}
 
@@ -123,7 +125,9 @@ export default function VisitDetail({ fromCompleted = false }) {
 
           <StatusBadge status={visit.status} />
 
-          {isCompleted && <PointsBadge points={visit.pointsEarned ?? 0} className="ms-auto" />}
+          {SHOW_POINTS_SECTION && isCompleted && (
+            <PointsBadge points={visit.pointsEarned ?? 0} className="ms-auto" />
+          )}
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">

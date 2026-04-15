@@ -5,9 +5,12 @@ import Avatar from '../../components/Avatar'
 import { ErrorState, LoadingState } from '../../components/DataState'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 const initialShopperForm = {
   name: '',
   email: '',
+  personalEmail: '',
   password: '',
   city: '',
   primaryPhone: '',
@@ -34,7 +37,7 @@ export default function Shoppers() {
 
   const filteredShoppers = useMemo(() => {
     return shoppers.filter((shopper) => {
-      const target = `${shopper.name} ${shopper.email} ${shopper.city} ${shopper.primaryPhone ?? ''} ${shopper.whatsappPhone ?? ''}`
+      const target = `${shopper.name} ${shopper.email} ${shopper.personalEmail ?? ''} ${shopper.city} ${shopper.primaryPhone ?? ''} ${shopper.whatsappPhone ?? ''}`
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, shoppers])
@@ -64,6 +67,7 @@ export default function Shoppers() {
     setEditingForm({
       name: shopper.name,
       email: shopper.email,
+      personalEmail: shopper.personalEmail ?? '',
       password: shopper.password ?? '',
       city: shopper.city,
       primaryPhone: shopper.primaryPhone ?? '',
@@ -108,7 +112,7 @@ export default function Shoppers() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`mt-4 grid gap-3 sm:grid-cols-2 ${SHOW_POINTS_SECTION ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">إجمالي</p>
             <p className="mt-1 text-2xl font-black text-slate-900">{summary.total}</p>
@@ -121,10 +125,12 @@ export default function Shoppers() {
             <p className="text-xs text-slate-600">غير نشطين</p>
             <p className="mt-1 text-2xl font-black text-slate-800">{summary.inactive}</p>
           </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs text-amber-700">إجمالي النقاط الموزعة</p>
-            <p className="mt-1 text-2xl font-black text-amber-800">{summary.points}</p>
-          </div>
+          {SHOW_POINTS_SECTION && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs text-amber-700">إجمالي النقاط الموزعة</p>
+              <p className="mt-1 text-2xl font-black text-amber-800">{summary.points}</p>
+            </div>
+          )}
         </div>
 
         <div className="relative mt-4">
@@ -146,7 +152,7 @@ export default function Shoppers() {
                 <th className="px-4 py-3 text-start font-black">المتسوق</th>
                 <th className="px-4 py-3 text-start font-black">المدينة</th>
                 <th className="px-4 py-3 text-start font-black">الزيارات</th>
-                <th className="px-4 py-3 text-start font-black">النقاط</th>
+                {SHOW_POINTS_SECTION && <th className="px-4 py-3 text-start font-black">النقاط</th>}
                 <th className="px-4 py-3 text-start font-black">الحالة</th>
                 <th className="px-4 py-3 text-start font-black">الإجراءات</th>
               </tr>
@@ -164,6 +170,9 @@ export default function Shoppers() {
                         <p className="font-bold text-slate-900">{shopper.name}</p>
                         <p className="text-xs text-slate-500">{shopper.email}</p>
                         <p className="text-xs text-slate-500">
+                          الشخصي: {shopper.personalEmail || '-'}
+                        </p>
+                        <p className="text-xs text-slate-500">
                           الأساسي: {shopper.primaryPhone || '-'}
                         </p>
                         <p className="text-xs text-slate-500">
@@ -174,7 +183,7 @@ export default function Shoppers() {
                   </td>
                   <td className="px-4 py-3 text-slate-700">{shopper.city}</td>
                   <td className="px-4 py-3 text-slate-700">{shopper.visits} من 20</td>
-                  <td className="px-4 py-3 font-bold text-amber-700">{shopper.points}</td>
+                  {SHOW_POINTS_SECTION && <td className="px-4 py-3 font-bold text-amber-700">{shopper.points}</td>}
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
@@ -211,7 +220,7 @@ export default function Shoppers() {
 
               {filteredShoppers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8">
+                  <td colSpan={SHOW_POINTS_SECTION ? 6 : 5} className="px-4 py-8">
                     {shoppers.length === 0 ? (
                       <div className="text-center">
                         <UserRound className="mx-auto h-10 w-10 text-slate-300" />
@@ -271,6 +280,15 @@ export default function Shoppers() {
                   setNewShopper((previous) => ({ ...previous, email: event.target.value }))
                 }
                 placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                type="email"
+                value={newShopper.personalEmail}
+                onChange={(event) =>
+                  setNewShopper((previous) => ({ ...previous, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
@@ -368,6 +386,15 @@ export default function Shoppers() {
                   setEditingForm((previous) => ({ ...previous, email: event.target.value }))
                 }
                 placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                type="email"
+                value={editingForm.personalEmail}
+                onChange={(event) =>
+                  setEditingForm((previous) => ({ ...previous, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input

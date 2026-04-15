@@ -16,13 +16,15 @@ import ScoreBar from '../../components/ScoreBar'
 import useDashboardStats from '../../hooks/useDashboardStats'
 import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 const statusStyles = {
   مكتملة: 'bg-emerald-500',
   'إعادة الزيارة': 'bg-amber-500',
   'زيارة جديدة': 'bg-slate-700',
 }
 
-const LeaderboardRow = memo(function LeaderboardRow({ shopper, index }) {
+const LeaderboardRow = memo(function LeaderboardRow({ shopper, index, showPointsSection }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
@@ -34,7 +36,7 @@ const LeaderboardRow = memo(function LeaderboardRow({ shopper, index }) {
         <p className="text-sm text-slate-500">{shopper.email}</p>
       </div>
       <div className="ms-auto text-sm text-slate-500">{shopper.visits} زيارات</div>
-      <PointsBadge points={shopper.points} />
+      {showPointsSection && <PointsBadge points={shopper.points} />}
     </div>
   )
 })
@@ -68,13 +70,6 @@ export default function Overview() {
 
   const kpiCards = [
     {
-      label: 'إجمالي النقاط',
-      value: stats.totalPoints.toLocaleString('en-US'),
-      hint: '+12% مقارنة بالشهر الماضي',
-      icon: Coins,
-      styles: 'bg-amber-50 text-amber-700 border-amber-200',
-    },
-    {
       label: 'معدل التقييم',
       value: `${stats.avgRating.toFixed(2)} / 5`,
       hint: 'جودة الأداء العام',
@@ -98,6 +93,16 @@ export default function Overview() {
     },
   ]
 
+  if (SHOW_POINTS_SECTION) {
+    kpiCards.unshift({
+      label: 'إجمالي النقاط',
+      value: stats.totalPoints.toLocaleString('en-US'),
+      hint: '+12% مقارنة بالشهر الماضي',
+      icon: Coins,
+      styles: 'bg-amber-50 text-amber-700 border-amber-200',
+    })
+  }
+
   const recentCompleted = [...completedVisits]
     .sort((first, second) =>
       `${second.date} ${second.time}`.localeCompare(`${first.date} ${first.time}`),
@@ -105,7 +110,11 @@ export default function Overview() {
     .slice(0, 5)
 
   const topShoppers = [...shoppers]
-    .sort((first, second) => second.points - first.points)
+    .sort((first, second) =>
+      SHOW_POINTS_SECTION
+        ? second.points - first.points
+        : second.visits - first.visits,
+    )
     .slice(0, 5)
 
   const statusData = [
@@ -135,7 +144,7 @@ export default function Overview() {
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className={`grid gap-2 sm:grid-cols-2 ${SHOW_POINTS_SECTION ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
               <p className="text-xs text-white/80">زيارات اليوم</p>
               <p className="mt-1 text-xl font-black">{visitsToday}</p>
@@ -144,14 +153,16 @@ export default function Overview() {
               <p className="text-xs text-white/80">تقييمات جديدة</p>
               <p className="mt-1 text-xl font-black">{stats.completedVisits}</p>
             </div>
-            <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
-              <p className="text-xs text-white/80">نقاط موزعة</p>
-              <p className="mt-1 text-xl font-black">
-                {completedVisits
-                  .reduce((sum, visit) => sum + (visit.pointsEarned ?? 0), 0)
-                  .toLocaleString('en-US')}
-              </p>
-            </div>
+            {SHOW_POINTS_SECTION && (
+              <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
+                <p className="text-xs text-white/80">نقاط موزعة</p>
+                <p className="mt-1 text-xl font-black">
+                  {completedVisits
+                    .reduce((sum, visit) => sum + (visit.pointsEarned ?? 0), 0)
+                    .toLocaleString('en-US')}
+                </p>
+              </div>
+            )}
             <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
               <p className="text-xs text-white/80">معدل الإنجاز</p>
               <p className="mt-1 text-xl font-black">{stats.completionRate}%</p>
@@ -282,7 +293,7 @@ export default function Overview() {
                     <p className="text-sm text-slate-500">
                       {visit.date} • {visit.time}
                     </p>
-                    <PointsBadge points={visit.pointsEarned ?? 0} />
+                    {SHOW_POINTS_SECTION && <PointsBadge points={visit.pointsEarned ?? 0} />}
                   </div>
                 </div>
               )
@@ -296,7 +307,12 @@ export default function Overview() {
           </h3>
           <div className="mt-4 space-y-3">
             {topShoppers.map((shopper, index) => (
-              <LeaderboardRow key={shopper.id} shopper={shopper} index={index} />
+              <LeaderboardRow
+                key={shopper.id}
+                shopper={shopper}
+                index={index}
+                showPointsSection={SHOW_POINTS_SECTION}
+              />
             ))}
 
             {topShoppers.length === 0 && (

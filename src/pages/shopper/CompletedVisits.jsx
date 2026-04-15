@@ -7,6 +7,8 @@ import PointsBadge from '../../components/PointsBadge'
 import StarRating from '../../components/StarRating'
 import { calculateWeightedScore } from '../../utils/scoring'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 export default function CompletedVisits() {
   const { myVisits, evaluationCriteria, dataLoading, dataError } = useOutletContext()
 
@@ -30,7 +32,7 @@ export default function CompletedVisits() {
 
     return prepared.sort((first, second) => {
       if (sortBy === 'score') return second.finalScore - first.finalScore
-      if (sortBy === 'points') return (second.pointsEarned ?? 0) - (first.pointsEarned ?? 0)
+      if (SHOW_POINTS_SECTION && sortBy === 'points') return (second.pointsEarned ?? 0) - (first.pointsEarned ?? 0)
       return `${second.date} ${second.time}`.localeCompare(`${first.date} ${first.time}`)
     })
   }, [completedVisits, debouncedQuery, sortBy])
@@ -99,7 +101,7 @@ export default function CompletedVisits() {
             >
               <option value="date">حسب التاريخ</option>
               <option value="score">حسب التقييم</option>
-              <option value="points">حسب النقاط</option>
+              {SHOW_POINTS_SECTION && <option value="points">حسب النقاط</option>}
             </select>
           </label>
 
@@ -126,7 +128,7 @@ export default function CompletedVisits() {
                 </p>
               </div>
 
-              <PointsBadge points={visit.pointsEarned ?? 0} className="ms-auto" />
+              {SHOW_POINTS_SECTION && <PointsBadge points={visit.pointsEarned ?? 0} className="ms-auto" />}
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">

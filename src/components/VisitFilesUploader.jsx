@@ -20,6 +20,7 @@ import {
 } from '../utils/visitFiles'
 
 const VISIT_FILES_BUCKET = 'visit-files'
+const SHOW_POINTS_SECTION = import.meta.env.DEV
 
 function Toast({ type, message }) {
   if (!message) return null
@@ -231,9 +232,11 @@ export default function VisitFilesUploader({ visit, onSaveFiles }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-display text-xl font-black text-slate-900">مرفقات الزيارة</h3>
-        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-          نقاط الوسائط: {filePaths.reduce((sum, path) => sum + getFilePointsFromPath(path), 0)}
-        </span>
+        {SHOW_POINTS_SECTION && (
+          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+            نقاط الوسائط: {filePaths.reduce((sum, path) => sum + getFilePointsFromPath(path), 0)}
+          </span>
+        )}
       </div>
 
       <div
@@ -336,9 +339,13 @@ export default function VisitFilesUploader({ visit, onSaveFiles }) {
                 </p>
 
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">
-                    +{points} نقطة
-                  </span>
+                  {SHOW_POINTS_SECTION ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">
+                      +{points} نقطة
+                    </span>
+                  ) : (
+                    <span />
+                  )}
                   <span className="text-xs text-slate-500">
                     {isImage ? 'صورة' : isVideo ? 'فيديو' : 'ملف'}
                   </span>

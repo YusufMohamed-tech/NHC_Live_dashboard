@@ -14,6 +14,8 @@ import ReportHeader from '../../components/ReportHeader'
 import { generateMysteryShopperPdf } from '../../utils/reportsPdf'
 import { calculateWeightedScore } from '../../utils/scoring'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 const subTabs = [
   { key: 'overview', label: 'نظرة عامة' },
   { key: 'offices', label: 'تقرير الفروع' },
@@ -227,6 +229,7 @@ export default function Reports() {
         visits,
         issues,
         evaluationCriteria,
+        showPointsSection: SHOW_POINTS_SECTION,
       })
 
       setToast({ type: 'success', message: 'تم تصدير التقرير بنجاح' })
@@ -412,31 +415,33 @@ export default function Reports() {
 
       {activeSubTab === 'shoppers' && (
         <section className="space-y-4">
-          <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-display text-xl font-black text-slate-900">
-              النقاط لكل متسوق
-            </h3>
-            <div ref={chartContainerRef} className="mt-4 h-80 w-full min-w-0">
-              {hasShopperChartData && chartWidth > 0 ? (
-                <BarChart
-                  width={Math.max(280, chartWidth)}
-                  height={320}
-                  data={chartData}
-                  margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
-                  <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              ) : (
-                <p className="flex h-full items-center justify-center text-sm text-slate-500">
-                  لا توجد بيانات كافية لعرض الرسم البياني حالياً.
-                </p>
-              )}
-            </div>
-          </article>
+          {SHOW_POINTS_SECTION && (
+            <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="font-display text-xl font-black text-slate-900">
+                النقاط لكل متسوق
+              </h3>
+              <div ref={chartContainerRef} className="mt-4 h-80 w-full min-w-0">
+                {hasShopperChartData && chartWidth > 0 ? (
+                  <BarChart
+                    width={Math.max(280, chartWidth)}
+                    height={320}
+                    data={chartData}
+                    margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`${value} نقطة`, 'النقاط']} />
+                    <Bar dataKey="points" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                ) : (
+                  <p className="flex h-full items-center justify-center text-sm text-slate-500">
+                    لا توجد بيانات كافية لعرض الرسم البياني حالياً.
+                  </p>
+                )}
+              </div>
+            </article>
+          )}
 
           <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
@@ -446,7 +451,7 @@ export default function Reports() {
                     <th className="px-4 py-3 text-start font-black">المتسوق</th>
                     <th className="px-4 py-3 text-start font-black">الزيارات</th>
                     <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
-                    <th className="px-4 py-3 text-start font-black">النقاط</th>
+                    {SHOW_POINTS_SECTION && <th className="px-4 py-3 text-start font-black">النقاط</th>}
                     <th className="px-4 py-3 text-start font-black">الحالة</th>
                   </tr>
                 </thead>
@@ -459,7 +464,7 @@ export default function Reports() {
                       <td className="px-4 py-3 font-semibold text-slate-900">{row.name}</td>
                       <td className="px-4 py-3 text-slate-600">{row.visitsCount}</td>
                       <td className="px-4 py-3 text-slate-600">{row.averageRating.toFixed(2)} / 5</td>
-                      <td className="px-4 py-3 font-bold text-amber-700">{row.points}</td>
+                      {SHOW_POINTS_SECTION && <td className="px-4 py-3 font-bold text-amber-700">{row.points}</td>}
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ${
