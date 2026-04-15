@@ -367,13 +367,13 @@ export async function generateMysteryShopperPdf({
   const summaryRows = [
     [rtlText(doc, 'إجمالي الزيارات'), String(visits.length)],
     [rtlText(doc, 'الزيارات المكتملة'), String(completedVisits.length)],
-    [rtlText(doc, 'الزيارات المعلقة'), String(pendingVisits.length)],
-    [rtlText(doc, 'الزيارات القادمة'), String(upcomingVisits.length)],
+    [rtlText(doc, 'الزيارات الجديدة'), String(pendingVisits.length)],
+    [rtlText(doc, 'إعادة الزيارة'), String(upcomingVisits.length)],
     [rtlText(doc, 'متوسط التقييم'), `${averageRating.toFixed(2)} / 5`],
-    [rtlText(doc, 'إجمالي المشاكل'), String(issues.length)],
-    [rtlText(doc, 'مشاكل بسيطة'), String(issueSummary.simple)],
-    [rtlText(doc, 'مشاكل متوسطة'), String(issueSummary.medium)],
-    [rtlText(doc, 'مشاكل خطيرة'), String(issueSummary.critical)],
+    [rtlText(doc, 'إجمالي التحديات'), String(issues.length)],
+    [rtlText(doc, 'تحديات بسيطة'), String(issueSummary.simple)],
+    [rtlText(doc, 'تحديات متوسطة'), String(issueSummary.medium)],
+    [rtlText(doc, 'تحديات خطيرة'), String(issueSummary.critical)],
     [rtlText(doc, 'إجمالي النقاط الموزعة'), String(totalDistributedPoints)],
   ]
 
@@ -418,7 +418,7 @@ export async function generateMysteryShopperPdf({
   autoTable(doc, {
     startY: SUBPAGE_TABLE_START_Y,
     head: [[
-      rtlText(doc, 'المنشأة'),
+      rtlText(doc, 'الفرع'),
       rtlText(doc, 'المدينة'),
       rtlText(doc, 'التاريخ'),
       rtlText(doc, 'المتسوق'),

@@ -34,6 +34,11 @@ export default function Login({ onLogin }) {
       return
     }
 
+    if (user.role === 'ops') {
+      navigate('/ops/overview', { replace: true })
+      return
+    }
+
     navigate('/shopper/dashboard', { replace: true })
   }
 

@@ -128,7 +128,7 @@ export default function VisitDetail({ fromCompleted = false }) {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">التاريخ والوقت</p>
+            <p className="text-xs text-slate-500">التاريخ والفترة</p>
             <p className="mt-1 text-sm font-bold text-slate-800">
               {visit.date} • {visit.time}
             </p>

@@ -14,16 +14,22 @@ import { ErrorState, LoadingState } from '../../components/DataState'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import StatusBadge from '../../components/StatusBadge'
 
-const filters = ['الكل', 'معلقة', 'قادمة', 'مكتملة']
+const filters = [
+  { label: 'الكل', value: 'الكل' },
+  { label: 'زيارة جديدة', value: 'معلقة' },
+  { label: 'إعادة الزيارة', value: 'قادمة' },
+  { label: 'مكتملة', value: 'مكتملة' },
+  { label: 'جاري المسح', value: 'جاري المسح' },
+]
 
 function getInitialVisit(shopperId = '') {
   return {
     officeName: '',
     city: '',
-    type: 'مكتب مبيعات',
+    type: '',
     status: 'معلقة',
     date: new Date().toISOString().slice(0, 10),
-    time: '10:00 صباحاً',
+    time: 'صباحية',
     assignedShopperId: shopperId,
     scenario: '',
   }
@@ -31,6 +37,7 @@ function getInitialVisit(shopperId = '') {
 
 export default function Visits() {
   const {
+    user,
     visits,
     shoppers,
     addVisit,
@@ -47,15 +54,18 @@ export default function Visits() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingVisit, setEditingVisit] = useState(null)
   const [newVisit, setNewVisit] = useState(() =>
-    getInitialVisit(shoppers.find((shopper) => shopper.status === 'نشط')?.id ?? ''),
+    getInitialVisit(''),
   )
-  const hasAssignableShoppers = shoppers.length > 0
+  const canAssignShopper = user?.role === 'superadmin' || user?.role === 'ops'
+  const canDeleteVisit = user?.role === 'superadmin' || user?.role === 'ops'
+  const hasAssignableShoppers = canAssignShopper && shoppers.length > 0
 
   const summary = {
     total: visits.length,
     completed: visits.filter((visit) => visit.status === 'مكتملة').length,
     upcoming: visits.filter((visit) => visit.status === 'قادمة').length,
     pending: visits.filter((visit) => visit.status === 'معلقة').length,
+    deleting: visits.filter((visit) => visit.status === 'جاري المسح').length,
   }
 
   const filteredVisits = useMemo(() => {
@@ -72,9 +82,7 @@ export default function Visits() {
   const handleCreateVisit = async (event) => {
     event.preventDefault()
 
-    if (!newVisit.assignedShopperId) {
-      return
-    }
+    const assignedShopperId = canAssignShopper ? newVisit.assignedShopperId || null : null
 
     await addVisit({
       officeName: newVisit.officeName,
@@ -83,20 +91,23 @@ export default function Visits() {
       date: newVisit.date,
       time: newVisit.time,
       status: newVisit.status,
-      assignedShopperId: newVisit.assignedShopperId,
+      assignedShopperId,
       scenario: newVisit.scenario,
     })
 
-    setNewVisit(
-      getInitialVisit(shoppers.find((shopper) => shopper.status === 'نشط')?.id ?? ''),
-    )
+    setNewVisit(getInitialVisit(''))
     setIsAddModalOpen(false)
   }
 
   const handleDeleteVisit = async (visitId) => {
+    if (!canDeleteVisit) return
+
     const confirmed = window.confirm('هل تريد حذف هذه الزيارة؟')
     if (confirmed) {
-      await deleteVisit(visitId)
+      const result = await deleteVisit(visitId)
+      if (result === 'requested') {
+        window.alert('جاري المسح')
+      }
     }
   }
 
@@ -110,7 +121,7 @@ export default function Visits() {
       status: editingVisit.status,
       date: editingVisit.date,
       time: editingVisit.time,
-      assignedShopperId: editingVisit.assignedShopperId,
+      assignedShopperId: canAssignShopper ? editingVisit.assignedShopperId || null : undefined,
       scenario: editingVisit.scenario,
     })
 
@@ -137,8 +148,7 @@ export default function Visits() {
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            disabled={!hasAssignableShoppers}
-            title={!hasAssignableShoppers ? 'أضف متسوقاً أولاً لجدولة زيارة' : undefined}
+            title={!canAssignShopper ? 'سيتم التعيين لاحقاً بواسطة السوبر أدمن أو Ops' : undefined}
             className="ms-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
@@ -146,7 +156,7 @@ export default function Visits() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">إجمالي</p>
             <p className="mt-1 text-2xl font-black text-slate-900">{summary.total}</p>
@@ -156,28 +166,32 @@ export default function Visits() {
             <p className="mt-1 text-2xl font-black text-emerald-800">{summary.completed}</p>
           </div>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs text-amber-700">قادمة</p>
+            <p className="text-xs text-amber-700">إعادة الزيارة</p>
             <p className="mt-1 text-2xl font-black text-amber-800">{summary.upcoming}</p>
           </div>
           <div className="rounded-lg border border-slate-300 bg-slate-100 p-3">
-            <p className="text-xs text-slate-600">معلقة</p>
+            <p className="text-xs text-slate-600">زيارة جديدة</p>
             <p className="mt-1 text-2xl font-black text-slate-800">{summary.pending}</p>
+          </div>
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs text-rose-700">طلبات مسح</p>
+            <p className="mt-1 text-2xl font-black text-rose-800">{summary.deleting}</p>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {filters.map((filter) => (
             <button
-              key={filter}
+              key={filter.value}
               type="button"
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => setActiveFilter(filter.value)}
               className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                activeFilter === filter
+                activeFilter === filter.value
                   ? 'bg-indigo-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {filter}
+              {filter.label}
             </button>
           ))}
         </div>
@@ -187,7 +201,7 @@ export default function Visits() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="البحث عن منشأة أو مدينة..."
+            placeholder="البحث عن فرع أو مدينة..."
             className="h-11 w-full rounded-xl border border-slate-300 bg-white pe-10 ps-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </div>
@@ -208,8 +222,15 @@ export default function Visits() {
                   <button
                     type="button"
                     onClick={() => handleDeleteVisit(visit.id)}
+                    disabled={!canDeleteVisit || (user?.role === 'ops' && visit.status === 'جاري المسح')}
                     className="rounded-lg border border-rose-300 p-1.5 text-rose-600 transition hover:bg-rose-50"
-                    title="حذف"
+                    title={
+                      user?.role === 'superadmin' && visit.status === 'جاري المسح'
+                        ? 'اعتماد المسح'
+                        : user?.role === 'ops'
+                          ? 'طلب حذف'
+                          : 'حذف'
+                    }
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -251,7 +272,7 @@ export default function Visits() {
 
               <div className="mt-3 text-sm">
                 <span className="text-slate-500">
-                  المتسوق: {shopper ? shopper.name : 'غير معين'}
+                  المتسوق: {shopper ? shopper.name : 'في انتظار التعيين'}
                 </span>
               </div>
             </article>
@@ -267,8 +288,6 @@ export default function Visits() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
-                  disabled={!hasAssignableShoppers}
-                  title={!hasAssignableShoppers ? 'أضف متسوقاً أولاً لجدولة زيارة' : undefined}
                   className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   إضافة زيارة
@@ -297,21 +316,6 @@ export default function Visits() {
 
             <form onSubmit={handleCreateVisit} className="mt-4 grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-sm text-slate-600">
-                <span>المنشأة</span>
-                <input
-                  required
-                  value={newVisit.officeName}
-                  onChange={(event) =>
-                    setNewVisit((previous) => ({
-                      ...previous,
-                      officeName: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="space-y-1 text-sm text-slate-600">
                 <span>المدينة</span>
                 <input
                   required
@@ -320,6 +324,21 @@ export default function Visits() {
                     setNewVisit((previous) => ({
                       ...previous,
                       city: event.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
+                />
+              </label>
+
+              <label className="space-y-1 text-sm text-slate-600">
+                <span>الفرع</span>
+                <input
+                  required
+                  value={newVisit.officeName}
+                  onChange={(event) =>
+                    setNewVisit((previous) => ({
+                      ...previous,
+                      officeName: event.target.value,
                     }))
                   }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
@@ -338,14 +357,13 @@ export default function Visits() {
                   }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
                 >
-                  <option value="معلقة">معلقة</option>
-                  <option value="قادمة">قادمة</option>
-                  <option value="مكتملة">مكتملة</option>
+                  <option value="معلقة">زيارة جديدة</option>
+                  <option value="قادمة">إعادة الزيارة</option>
                 </select>
               </label>
 
               <label className="space-y-1 text-sm text-slate-600">
-                <span>نوع الزيارة</span>
+                <span>نوع السيناريو</span>
                 <input
                   value={newVisit.type}
                   onChange={(event) =>
@@ -374,8 +392,8 @@ export default function Visits() {
               </label>
 
               <label className="space-y-1 text-sm text-slate-600">
-                <span>الوقت</span>
-                <input
+                <span>الفترة</span>
+                <select
                   value={newVisit.time}
                   onChange={(event) =>
                     setNewVisit((previous) => ({
@@ -383,43 +401,44 @@ export default function Visits() {
                       time: event.target.value,
                     }))
                   }
-                  placeholder="11:00 صباحاً"
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                <span>المتسوق</span>
-                <select
-                  required
-                  value={newVisit.assignedShopperId}
-                  disabled={!hasAssignableShoppers}
-                  onChange={(event) =>
-                    setNewVisit((previous) => ({
-                      ...previous,
-                      assignedShopperId: event.target.value,
-                    }))
-                  }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
                 >
-                  <option value="" disabled>
-                    اختر متسوقاً
-                  </option>
-                  {shoppers.map((shopper) => (
-                    <option key={shopper.id} value={shopper.id}>
-                      {shopper.name}
-                    </option>
-                  ))}
+                  <option value="صباحية">صباحية</option>
+                  <option value="مسائية">مسائية</option>
                 </select>
-                {!hasAssignableShoppers && (
-                  <p className="text-xs text-amber-700">لا يمكن جدولة زيارة قبل إضافة متسوق.</p>
-                )}
               </label>
 
+              {canAssignShopper ? (
+                <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
+                  <span>المتسوق</span>
+                  <select
+                    value={newVisit.assignedShopperId}
+                    disabled={!hasAssignableShoppers}
+                    onChange={(event) =>
+                      setNewVisit((previous) => ({
+                        ...previous,
+                        assignedShopperId: event.target.value,
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
+                  >
+                    <option value="">في انتظار التعيين</option>
+                    {shoppers.map((shopper) => (
+                      <option key={shopper.id} value={shopper.id}>
+                        {shopper.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="text-xs text-amber-700 sm:col-span-2">
+                  سيتم تعيين المتسوق لاحقاً بواسطة السوبر أدمن أو Ops.
+                </p>
+              )}
+
               <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                <span>السيناريو</span>
+                <span>شرح تفصيلي عن الزيارة (إن وجد)</span>
                 <textarea
-                  required
                   value={newVisit.scenario}
                   onChange={(event) =>
                     setNewVisit((previous) => ({
@@ -434,7 +453,6 @@ export default function Visits() {
 
               <button
                 type="submit"
-                disabled={!hasAssignableShoppers}
                 className="h-11 rounded-xl bg-sky-600 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
               >
                 حفظ الزيارة
@@ -460,20 +478,6 @@ export default function Visits() {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-sm text-slate-600">
-                <span>المنشأة</span>
-                <input
-                  value={editingVisit.officeName}
-                  onChange={(event) =>
-                    setEditingVisit((previous) => ({
-                      ...previous,
-                      officeName: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="space-y-1 text-sm text-slate-600">
                 <span>المدينة</span>
                 <input
                   value={editingVisit.city}
@@ -481,6 +485,20 @@ export default function Visits() {
                     setEditingVisit((previous) => ({
                       ...previous,
                       city: event.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
+                />
+              </label>
+
+              <label className="space-y-1 text-sm text-slate-600">
+                <span>الفرع</span>
+                <input
+                  value={editingVisit.officeName}
+                  onChange={(event) =>
+                    setEditingVisit((previous) => ({
+                      ...previous,
+                      officeName: event.target.value,
                     }))
                   }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
@@ -499,14 +517,14 @@ export default function Visits() {
                   }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
                 >
-                  <option value="معلقة">معلقة</option>
-                  <option value="قادمة">قادمة</option>
-                  <option value="مكتملة">مكتملة</option>
+                  <option value="معلقة">زيارة جديدة</option>
+                  <option value="قادمة">إعادة الزيارة</option>
+                  <option value="جاري المسح">جاري المسح</option>
                 </select>
               </label>
 
               <label className="space-y-1 text-sm text-slate-600">
-                <span>نوع الزيارة</span>
+                <span>نوع السيناريو</span>
                 <input
                   value={editingVisit.type}
                   onChange={(event) =>
@@ -535,8 +553,8 @@ export default function Visits() {
               </label>
 
               <label className="space-y-1 text-sm text-slate-600">
-                <span>الوقت</span>
-                <input
+                <span>الفترة</span>
+                <select
                   value={editingVisit.time}
                   onChange={(event) =>
                     setEditingVisit((previous) => ({
@@ -545,31 +563,41 @@ export default function Visits() {
                     }))
                   }
                   className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
-                />
-              </label>
-
-              <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                <span>المتسوق</span>
-                <select
-                  value={editingVisit.assignedShopperId}
-                  onChange={(event) =>
-                    setEditingVisit((previous) => ({
-                      ...previous,
-                      assignedShopperId: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
                 >
-                  {shoppers.map((shopper) => (
-                    <option key={shopper.id} value={shopper.id}>
-                      {shopper.name}
-                    </option>
-                  ))}
+                  <option value="صباحية">صباحية</option>
+                  <option value="مسائية">مسائية</option>
                 </select>
               </label>
 
+              {canAssignShopper ? (
+                <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
+                  <span>المتسوق</span>
+                  <select
+                    value={editingVisit.assignedShopperId ?? ''}
+                    onChange={(event) =>
+                      setEditingVisit((previous) => ({
+                        ...previous,
+                        assignedShopperId: event.target.value,
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-indigo-500"
+                  >
+                    <option value="">في انتظار التعيين</option>
+                    {shoppers.map((shopper) => (
+                      <option key={shopper.id} value={shopper.id}>
+                        {shopper.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  المتسوق: {getShopperById(editingVisit.assignedShopperId)?.name ?? 'في انتظار التعيين'}
+                </div>
+              )}
+
               <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                <span>السيناريو</span>
+                <span>شرح تفصيلي عن الزيارة (إن وجد)</span>
                 <textarea
                   value={editingVisit.scenario}
                   onChange={(event) =>

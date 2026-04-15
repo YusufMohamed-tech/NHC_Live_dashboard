@@ -55,12 +55,12 @@ export default function Dashboard() {
       color: 'text-emerald-800 bg-emerald-50 border-emerald-200',
     },
     {
-      label: 'قادمة',
+      label: 'إعادة الزيارة',
       value: upcomingVisits,
       color: 'text-amber-800 bg-amber-50 border-amber-200',
     },
     {
-      label: 'قيد الانتظار',
+      label: 'زيارة جديدة',
       value: pendingVisits,
       color: 'text-slate-700 bg-slate-100 border-slate-300',
     },
@@ -77,7 +77,7 @@ export default function Dashboard() {
             <div>
               <h2 className="font-display text-3xl font-black">مرحباً بعودتك {user.name}</h2>
               <p className="text-sm text-white/85">
-                {upcomingVisits} زيارة قادمة • {pendingVisits} زيارة معلقة
+                {upcomingVisits} إعادة زيارة • {pendingVisits} زيارة جديدة
               </p>
             </div>
 
@@ -104,7 +104,7 @@ export default function Dashboard() {
               <span>{completionRate}%</span>
             </div>
             <ScoreBar value={completionRate} max={100} showValue={false} />
-            <p className="mt-2 text-sm text-white/90">عدد المشاكل المكتشفة: {issuesCount}</p>
+            <p className="mt-2 text-sm text-white/90">عدد التحديات: {issuesCount}</p>
           </div>
         </div>
       </section>
@@ -125,7 +125,7 @@ export default function Dashboard() {
         <article className="rounded-2xl bg-gradient-to-l from-rose-500 to-pink-500 p-5 text-white shadow-sm">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            <h3 className="font-display text-xl font-black">المشاكل المكتشفة</h3>
+            <h3 className="font-display text-xl font-black">التحديات</h3>
           </div>
           <p className="mt-4 text-4xl font-black">{issuesCount}</p>
           <p className="mt-1 text-sm text-white/90">بمتوسط {avgIssuesPerVisit} لكل زيارة</p>
@@ -151,7 +151,7 @@ export default function Dashboard() {
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-700">
             <Clock3 className="h-4 w-4" />
-            <h4 className="font-bold">الزيارات القادمة</h4>
+            <h4 className="font-bold">إعادة الزيارة</h4>
           </div>
           <p className="mt-2 text-2xl font-black text-slate-900">{upcomingVisits}</p>
         </article>
@@ -159,7 +159,7 @@ export default function Dashboard() {
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-700">
             <Timer className="h-4 w-4" />
-            <h4 className="font-bold">الزيارات المعلقة</h4>
+            <h4 className="font-bold">زيارات جديدة</h4>
           </div>
           <p className="mt-2 text-2xl font-black text-slate-900">{pendingVisits}</p>
         </article>

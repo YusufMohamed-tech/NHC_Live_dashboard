@@ -3,10 +3,12 @@ import { LogOut, ShieldCheck } from 'lucide-react'
 export default function Navbar({ title, user, onLogout, showLiveIndicator = false }) {
   const roleText =
     user?.role === 'superadmin'
-      ? 'مدير عام'
+      ? 'سوبر أدمن'
       : user?.role === 'admin'
-        ? 'مدير فرعي'
-        : 'متسوق'
+        ? 'مدير'
+        : user?.role === 'ops'
+          ? 'Ops'
+          : 'متسوق'
 
   return (
     <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

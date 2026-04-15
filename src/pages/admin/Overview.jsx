@@ -18,8 +18,8 @@ import { calculateWeightedScore, getScoreClasses } from '../../utils/scoring'
 
 const statusStyles = {
   مكتملة: 'bg-emerald-500',
-  قادمة: 'bg-amber-500',
-  معلقة: 'bg-slate-700',
+  'إعادة الزيارة': 'bg-amber-500',
+  'زيارة جديدة': 'bg-slate-700',
 }
 
 const LeaderboardRow = memo(function LeaderboardRow({ shopper, index }) {
@@ -110,8 +110,8 @@ export default function Overview() {
 
   const statusData = [
     { label: 'مكتملة', count: stats.completedVisits },
-    { label: 'قادمة', count: stats.upcomingVisits },
-    { label: 'معلقة', count: stats.pendingVisits },
+    { label: 'إعادة الزيارة', count: stats.upcomingVisits },
+    { label: 'زيارة جديدة', count: stats.pendingVisits },
   ]
 
   return (
@@ -123,7 +123,7 @@ export default function Overview() {
         <div className="relative z-10 space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div>
-              <h2 className="font-display text-3xl font-black">لوحة تحكم المدير الفرعي</h2>
+              <h2 className="font-display text-3xl font-black">لوحة تحكم المدير</h2>
               <p className="text-sm text-white/85">
                 نظرة شاملة على برنامج المتحري الخفي
               </p>
@@ -157,7 +157,7 @@ export default function Overview() {
               <p className="mt-1 text-xl font-black">{stats.completionRate}%</p>
             </div>
             <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
-              <p className="text-xs text-white/80">المشاكل المكتشفة</p>
+              <p className="text-xs text-white/80">التحديات</p>
               <p className="mt-1 text-xl font-black">{stats.issuesTotal}</p>
             </div>
           </div>
@@ -196,7 +196,7 @@ export default function Overview() {
       <section className="grid gap-4 xl:grid-cols-2">
         <article className="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl font-black text-rose-900">المشاكل المكتشفة</h3>
+            <h3 className="font-display text-xl font-black text-rose-900">التحديات</h3>
             <AlertTriangle className="h-5 w-5 text-rose-700" />
           </div>
           <p className="mt-2 text-3xl font-black text-rose-800">{stats.issuesTotal}</p>

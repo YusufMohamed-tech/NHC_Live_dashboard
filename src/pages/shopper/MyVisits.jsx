@@ -5,7 +5,11 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/DataState
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import StatusBadge from '../../components/StatusBadge'
 
-const filterTabs = ['الكل', 'معلقة', 'قادمة']
+const filterTabs = [
+  { label: 'الكل', value: 'الكل' },
+  { label: 'زيارة جديدة', value: 'معلقة' },
+  { label: 'إعادة الزيارة', value: 'قادمة' },
+]
 
 export default function MyVisits() {
   const { myVisits, dataLoading, dataError } = useOutletContext()
@@ -34,8 +38,8 @@ export default function MyVisits() {
 
   const tabCount = {
     الكل: counts.all,
-    معلقة: counts.pending,
-    قادمة: counts.upcoming,
+    'زيارة جديدة': counts.pending,
+    'إعادة الزيارة': counts.upcoming,
   }
 
   if (dataLoading) {
@@ -58,16 +62,16 @@ export default function MyVisits() {
         <div className="mt-4 flex flex-wrap gap-2">
           {filterTabs.map((tab) => (
             <button
-              key={tab}
+              key={tab.value}
               type="button"
-              onClick={() => setActiveFilter(tab)}
+              onClick={() => setActiveFilter(tab.value)}
               className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                activeFilter === tab
+                activeFilter === tab.value
                   ? 'bg-indigo-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {tab} ({tabCount[tab]})
+              {tab.label} ({tabCount[tab.label]})
             </button>
           ))}
         </div>
@@ -77,7 +81,7 @@ export default function MyVisits() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="البحث عن منشأة أو مدينة..."
+            placeholder="البحث عن فرع أو مدينة..."
             className="h-11 w-full rounded-xl border border-slate-300 bg-white pe-10 ps-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </div>

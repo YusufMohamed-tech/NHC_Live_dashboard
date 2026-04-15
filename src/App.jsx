@@ -22,10 +22,11 @@ const SuperAdminOverview = lazy(() => import('./pages/superadmin/Overview'))
 const ManageAdmins = lazy(() => import('./pages/superadmin/ManageAdmins'))
 
 const AUTH_STORAGE_KEY = 'nhc-mystery-auth'
+const SHOW_POINTS_SECTION = import.meta.env.DEV
 
 const SUPER_ADMIN_ACCOUNT = {
   id: 'superadmin-root',
-  name: import.meta.env.VITE_SUPERADMIN_NAME?.trim() || 'المدير العام',
+  name: import.meta.env.VITE_SUPERADMIN_NAME?.trim() || 'سوبر أدمن',
   email: import.meta.env.VITE_SUPERADMIN_EMAIL?.trim() || 'superadmin@nhc.sa',
   password: import.meta.env.VITE_SUPERADMIN_PASSWORD?.trim() || '',
   role: 'superadmin',
@@ -67,6 +68,7 @@ const RIYADH_UTC_OFFSET = '+03:00'
 function getRoleHome(role) {
   if (role === 'superadmin') return '/superadmin/overview'
   if (role === 'admin') return '/admin/overview'
+  if (role === 'ops') return '/ops/overview'
   if (role === 'shopper') return '/shopper/dashboard'
   return '/'
 }
@@ -96,6 +98,15 @@ function parseVisitDateTime(date, time) {
   if (!dateValue) return new Date().toISOString()
 
   const normalizedTime = String(time ?? '').trim()
+
+  if (normalizedTime === 'صباحية') {
+    return `${dateValue}T10:00:00${RIYADH_UTC_OFFSET}`
+  }
+
+  if (normalizedTime === 'مسائية') {
+    return `${dateValue}T18:00:00${RIYADH_UTC_OFFSET}`
+  }
+
   const match = normalizedTime.match(/(\d{1,2}):(\d{2})\s*(صباحاً|مساءً|AM|PM|am|pm)?/u)
 
   let hour = 0
@@ -144,11 +155,11 @@ function formatVisitDate(visitDate) {
 }
 
 function formatVisitTime(visitDate) {
-  if (!visitDate) return '10:00 صباحاً'
+  if (!visitDate) return 'صباحية'
   const date = new Date(visitDate)
 
   if (Number.isNaN(date.getTime())) {
-    return '10:00 صباحاً'
+    return 'صباحية'
   }
 
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -159,11 +170,7 @@ function formatVisitTime(visitDate) {
   }).formatToParts(date)
 
   const hour24 = Number(parts.find((part) => part.type === 'hour')?.value ?? '10')
-  const minute = parts.find((part) => part.type === 'minute')?.value ?? '00'
-  const period = hour24 >= 12 ? 'مساءً' : 'صباحاً'
-  const hour12 = hour24 % 12 || 12
-
-  return `${String(hour12).padStart(2, '0')}:${minute} ${period}`
+  return hour24 >= 12 ? 'مسائية' : 'صباحية'
 }
 
 function normalizeAssignedIds(value) {
@@ -190,6 +197,8 @@ function mapShopperRow(row) {
     email: normalizeEmail(row.email),
     password: row.password ?? '',
     city: row.city ?? '',
+    primaryPhone: row.primary_phone ?? row.phone_primary ?? row.phone ?? '',
+    whatsappPhone: row.whatsapp_phone ?? row.phone_whatsapp ?? row.whatsapp ?? '',
     status: toArabicUserStatus(row.status),
     visits: Number(row.visits_completed ?? 0),
     points: Number(row.points ?? 0),
@@ -204,7 +213,7 @@ function mapVisitRow(row) {
     id: row.id,
     officeName: row.office_name ?? '',
     city: row.city ?? '',
-    type: row.type ?? 'مكتب مبيعات',
+    type: row.type ?? 'عام',
     status: row.status ?? 'معلقة',
     scenario: row.scenario ?? '',
     membershipId: row.membership_id ?? '',
@@ -412,6 +421,7 @@ function ProtectedRoute({ user, allowedRole, children }) {
 function App() {
   const [subAdmins, setSubAdmins] = useState([])
   const [superAdmins, setSuperAdmins] = useState([])
+  const [opsAdmins, setOpsAdmins] = useState([])
   const [shoppers, setShoppers] = useState([])
   const [visits, setVisits] = useState([])
   const [issues, setIssues] = useState([])
@@ -423,7 +433,7 @@ function App() {
 
   useEffect(() => {
     if (!SUPER_ADMIN_ACCOUNT.password) {
-      console.warn('VITE_SUPERADMIN_PASSWORD غير معرف، تسجيل دخول المدير العام سيكون معطلاً.')
+      console.warn('VITE_SUPERADMIN_PASSWORD غير معرف، تسجيل دخول السوبر أدمن سيكون معطلاً.')
     }
   }, [])
 
@@ -467,6 +477,7 @@ function App() {
           const mappedSuperAdmins = mappedAdmins.filter(
             (admin) => admin.role === 'superadmin',
           )
+          const mappedOpsAdmins = mappedAdmins.filter((admin) => admin.role === 'ops')
           const mappedShoppers = (shoppersData ?? []).map(mapShopperRow)
           const mappedVisits = (visitsData ?? []).map(mapVisitRow)
           const mappedIssues = (issuesData ?? []).map(mapIssueRow)
@@ -474,6 +485,7 @@ function App() {
 
           setSubAdmins(mappedSubAdmins)
           setSuperAdmins(mappedSuperAdmins)
+          setOpsAdmins(mappedOpsAdmins)
           setShoppers(mappedShoppers)
           setVisits(mappedVisits)
           setIssues(mappedIssues)
@@ -508,6 +520,7 @@ function App() {
           if (payload.eventType === 'DELETE') {
             setSubAdmins((previous) => previous.filter((admin) => admin.id !== payload.old.id))
             setSuperAdmins((previous) => previous.filter((admin) => admin.id !== payload.old.id))
+            setOpsAdmins((previous) => previous.filter((admin) => admin.id !== payload.old.id))
             return
           }
 
@@ -524,6 +537,7 @@ function App() {
             setSuperAdmins((previous) =>
               previous.filter((admin) => admin.id !== mappedAdmin.id),
             )
+            setOpsAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
             return
           }
 
@@ -537,11 +551,27 @@ function App() {
               )
             })
             setSubAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+            setOpsAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+            return
+          }
+
+          if (mappedAdmin.role === 'ops') {
+            setOpsAdmins((previous) => {
+              const exists = previous.some((admin) => admin.id === mappedAdmin.id)
+              if (!exists) return [mappedAdmin, ...previous]
+
+              return previous.map((admin) =>
+                admin.id === mappedAdmin.id ? mappedAdmin : admin,
+              )
+            })
+            setSubAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+            setSuperAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
             return
           }
 
           setSubAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
           setSuperAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
+          setOpsAdmins((previous) => previous.filter((admin) => admin.id !== mappedAdmin.id))
         },
       )
       .on(
@@ -670,6 +700,22 @@ function App() {
       }
     }
 
+    if (authUser.role === 'ops') {
+      const opsAdmin = opsAdmins.find(
+        (item) => item.id === authUser.id || normalizeEmail(item.email) === normalizeEmail(authUser.email),
+      )
+
+      if (!opsAdmin) {
+        return null
+      }
+
+      return {
+        ...authUser,
+        ...opsAdmin,
+        role: 'ops',
+      }
+    }
+
     if (authUser.role === 'shopper') {
       const shopper = shoppers.find(
         (item) => item.id === authUser.id || normalizeEmail(item.email) === normalizeEmail(authUser.email),
@@ -687,7 +733,7 @@ function App() {
     }
 
     return null
-  }, [authUser, shoppers, subAdmins, superAdmins])
+  }, [authUser, opsAdmins, shoppers, subAdmins, superAdmins])
 
   const issuesWithVisitMeta = useMemo(() => {
     const visitsMap = new Map(visits.map((visit) => [visit.id, visit]))
@@ -721,27 +767,17 @@ function App() {
     }))
   }, [issuesByVisit, visits])
 
-  const assignedShopperIds = useMemo(() => {
-    if (activeUser?.role !== 'admin') return []
-    return activeUser.assignedShopperIds ?? []
-  }, [activeUser])
-
   const scopedShoppers = useMemo(() => {
-    if (activeUser?.role !== 'admin') return shoppers
-    return shoppers.filter((shopper) => assignedShopperIds.includes(shopper.id))
-  }, [activeUser, assignedShopperIds, shoppers])
+    return shoppers
+  }, [shoppers])
 
   const scopedVisits = useMemo(() => {
-    if (activeUser?.role !== 'admin') return visitsWithIssues
-    return visitsWithIssues.filter((visit) => assignedShopperIds.includes(visit.assignedShopperId))
-  }, [activeUser, assignedShopperIds, visitsWithIssues])
+    return visitsWithIssues
+  }, [visitsWithIssues])
 
   const scopedIssues = useMemo(() => {
-    if (activeUser?.role !== 'admin') return issuesWithVisitMeta
-
-    const scopedVisitIds = new Set(scopedVisits.map((visit) => visit.id))
-    return issuesWithVisitMeta.filter((issue) => scopedVisitIds.has(issue.visitId))
-  }, [activeUser, issuesWithVisitMeta, scopedVisits])
+    return issuesWithVisitMeta
+  }, [issuesWithVisitMeta])
 
   const dataLoadingValue = dataLoading
   const dataErrorValue = dataError
@@ -758,10 +794,13 @@ function App() {
   const canManageVisit = (visit) => {
     if (!activeUser || !visit) return false
     if (activeUser.role === 'superadmin') return true
-    if (activeUser.role === 'admin') {
-      return (activeUser.assignedShopperIds ?? []).includes(visit.assignedShopperId)
-    }
+    if (activeUser.role === 'ops') return true
+    if (activeUser.role === 'admin') return true
     return false
+  }
+
+  const canAssignVisitShopper = () => {
+    return activeUser?.role === 'superadmin' || activeUser?.role === 'ops'
   }
 
   const handleLogin = (email, password) => {
@@ -825,6 +864,26 @@ function App() {
       return payload
     }
 
+    const opsAdmin = opsAdmins.find(
+      (item) =>
+        normalizeEmail(item.email) === normalizedEmail &&
+        item.password === password &&
+        item.status === 'نشط',
+    )
+
+    if (opsAdmin) {
+      const payload = {
+        id: opsAdmin.id,
+        name: opsAdmin.name,
+        email: opsAdmin.email,
+        role: 'ops',
+      }
+
+      setAuthUser(payload)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
+      return payload
+    }
+
     const shopper = shoppers.find(
       (item) =>
         normalizeEmail(item.email) === normalizedEmail &&
@@ -854,6 +913,7 @@ function App() {
   }
 
   const canManageSuperAdmins = isRootSuperAdmin(activeUser)
+  const canManageOpsAdmins = activeUser?.role === 'superadmin'
 
   const addSuperAdmin = async (payload) => {
     if (!canManageSuperAdmins) return null
@@ -947,6 +1007,103 @@ function App() {
     setSuperAdmins((previous) => previous.filter((item) => item.id !== superAdminId))
 
     if (authUser?.role === 'superadmin' && authUser.id === superAdminId) {
+      handleLogout()
+    }
+
+    return true
+  }
+
+  const addOpsAdmin = async (payload) => {
+    if (activeUser?.role !== 'superadmin') return null
+
+    const insertPayload = {
+      name: payload.name.trim(),
+      email: normalizeEmail(payload.email),
+      password: payload.password,
+      city: payload.city.trim(),
+      status: toDbUserStatus(payload.status),
+      role: 'ops',
+      assigned_shopper_ids: [],
+    }
+
+    const { data: insertedAdmin, error } = await supabase
+      .from('admins')
+      .insert([insertPayload])
+      .select('*')
+      .single()
+
+    if (error || !insertedAdmin) {
+      console.error('Error adding ops admin:', error)
+      return null
+    }
+
+    const nextOpsAdmin = mapAdminRow(insertedAdmin)
+    setOpsAdmins((previous) => [nextOpsAdmin, ...previous])
+
+    return nextOpsAdmin
+  }
+
+  const updateOpsAdmin = async (opsAdminId, updates) => {
+    if (activeUser?.role !== 'superadmin') return null
+
+    const currentAdmin = opsAdmins.find((admin) => admin.id === opsAdminId)
+    if (!currentAdmin) return null
+
+    const dbUpdates = {
+      name: updates.name ? updates.name.trim() : currentAdmin.name,
+      email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
+      password: updates.password ?? currentAdmin.password,
+      city: updates.city ? updates.city.trim() : currentAdmin.city,
+      status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
+    }
+
+    const { data: updatedAdminRow, error } = await supabase
+      .from('admins')
+      .update(dbUpdates)
+      .eq('id', opsAdminId)
+      .select('*')
+      .single()
+
+    if (error || !updatedAdminRow) {
+      console.error('Error updating ops admin:', error)
+      return null
+    }
+
+    const updatedItem = mapAdminRow(updatedAdminRow)
+    setOpsAdmins((previous) =>
+      previous.map((item) => (item.id === opsAdminId ? updatedItem : item)),
+    )
+
+    if (authUser?.role === 'ops' && authUser.id === opsAdminId) {
+      const refreshedAuth = {
+        ...authUser,
+        ...updatedItem,
+        role: 'ops',
+      }
+      setAuthUser(refreshedAuth)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedAuth))
+    }
+
+    return updatedItem
+  }
+
+  const deleteOpsAdmin = async (opsAdminId) => {
+    if (activeUser?.role !== 'superadmin') return false
+
+    const { error } = await supabase
+      .from('admins')
+      .delete()
+      .eq('id', opsAdminId)
+      .eq('role', 'ops')
+
+    if (error) {
+      console.error('Error deleting ops admin:', error)
+      return false
+    }
+
+    setOpsAdmins((previous) => previous.filter((item) => item.id !== opsAdminId))
+
+    if (authUser?.role === 'ops' && authUser.id === opsAdminId) {
       handleLogout()
     }
 
@@ -1070,7 +1227,7 @@ function App() {
 
     const dbStatus = toDbUserStatus(payload.status)
 
-    const newShopperData = {
+    const baseShopperData = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
       password: payload.password,
@@ -1081,11 +1238,28 @@ function App() {
       assigned_admin_id: null,
     }
 
-    const { data: dbShopper, error } = await supabase
+    const shopperDataWithPhones = {
+      ...baseShopperData,
+      primary_phone: String(payload.primaryPhone ?? '').trim(),
+      whatsapp_phone: String(payload.whatsappPhone ?? '').trim(),
+    }
+
+    let { data: dbShopper, error } = await supabase
       .from('shoppers')
-      .insert([newShopperData])
+      .insert([shopperDataWithPhones])
       .select()
       .single()
+
+    if (error) {
+      const { data: fallbackShopper, error: fallbackError } = await supabase
+        .from('shoppers')
+        .insert([baseShopperData])
+        .select()
+        .single()
+
+      dbShopper = fallbackShopper
+      error = fallbackError
+    }
 
     if (error || !dbShopper) {
       console.error('Error adding shopper:', error)
@@ -1103,20 +1277,44 @@ function App() {
     if (!canManageShopper(shopperId)) return null
 
     const dbUpdates = {}
-    if (updates.name) dbUpdates.name = updates.name.trim()
-    if (updates.email) dbUpdates.email = normalizeEmail(updates.email)
-    if (updates.city) dbUpdates.city = updates.city.trim()
-    if (updates.password) dbUpdates.password = updates.password
+    if (updates.name !== undefined) dbUpdates.name = updates.name.trim()
+    if (updates.email !== undefined) dbUpdates.email = normalizeEmail(updates.email)
+    if (updates.city !== undefined) dbUpdates.city = updates.city.trim()
+    if (updates.password !== undefined) dbUpdates.password = updates.password
     if (updates.status) {
       dbUpdates.status = toDbUserStatus(updates.status)
     }
 
-    const { data: dbShopper, error } = await supabase
+    if (updates.primaryPhone !== undefined) {
+      dbUpdates.primary_phone = String(updates.primaryPhone ?? '').trim()
+    }
+
+    if (updates.whatsappPhone !== undefined) {
+      dbUpdates.whatsapp_phone = String(updates.whatsappPhone ?? '').trim()
+    }
+
+    let { data: dbShopper, error } = await supabase
       .from('shoppers')
       .update(dbUpdates)
       .eq('id', shopperId)
       .select()
       .single()
+
+    if (error && (Object.hasOwn(dbUpdates, 'primary_phone') || Object.hasOwn(dbUpdates, 'whatsapp_phone'))) {
+      const fallbackUpdates = { ...dbUpdates }
+      delete fallbackUpdates.primary_phone
+      delete fallbackUpdates.whatsapp_phone
+
+      const fallbackResult = await supabase
+        .from('shoppers')
+        .update(fallbackUpdates)
+        .eq('id', shopperId)
+        .select()
+        .single()
+
+      dbShopper = fallbackResult.data
+      error = fallbackResult.error
+    }
 
     if (error || !dbShopper) {
       console.error('Error updating shopper:', error)
@@ -1183,17 +1381,27 @@ function App() {
   }
 
   const addVisit = async (payload) => {
-    if (!activeUser || !['superadmin', 'admin'].includes(activeUser.role)) return null
-    if (!payload.assignedShopperId || !canManageShopper(payload.assignedShopperId)) return null
+    if (!activeUser || !['superadmin', 'admin', 'ops'].includes(activeUser.role)) return null
+
+    const requestedShopperId = payload.assignedShopperId ?? null
+    const canAssign = canAssignVisitShopper()
+
+    if (requestedShopperId && !canAssign) {
+      return null
+    }
+
+    if (requestedShopperId && !shoppers.some((shopper) => shopper.id === requestedShopperId)) {
+      return null
+    }
 
     const dbPayload = {
       office_name: payload.officeName.trim(),
       city: payload.city.trim(),
-      type: payload.type ?? 'مكتب مبيعات',
+      type: payload.type ?? 'عام',
       status: payload.status ?? 'معلقة',
       scenario: payload.scenario?.trim() ?? '',
       membership_id: payload.membershipId?.trim() || generateMembershipId(),
-      shopper_id: payload.assignedShopperId,
+      shopper_id: requestedShopperId,
       visit_date: parseVisitDateTime(payload.date, payload.time),
       scores: payload.scores ?? makeEmptyScores(evaluationCriteria),
       notes: payload.notes ?? '',
@@ -1219,7 +1427,7 @@ function App() {
   }
 
   const updateVisit = async (visitId, updates) => {
-    if (!activeUser || !['superadmin', 'admin', 'shopper'].includes(activeUser.role)) return null
+    if (!activeUser || !['superadmin', 'admin', 'ops', 'shopper'].includes(activeUser.role)) return null
 
     const targetVisit = visits.find((visit) => visit.id === visitId)
     if (!targetVisit) return null
@@ -1237,7 +1445,10 @@ function App() {
     if (updates.status !== undefined) dbUpdates.status = updates.status
     if (updates.scenario !== undefined) dbUpdates.scenario = String(updates.scenario ?? '').trim()
     if (updates.membershipId !== undefined) dbUpdates.membership_id = String(updates.membershipId ?? '').trim()
-    if (updates.assignedShopperId !== undefined) dbUpdates.shopper_id = updates.assignedShopperId
+    if (updates.assignedShopperId !== undefined) {
+      if (!canAssignVisitShopper()) return null
+      dbUpdates.shopper_id = updates.assignedShopperId || null
+    }
     if (updates.scores !== undefined) dbUpdates.scores = updates.scores
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes
     if (updates.pointsEarned !== undefined) dbUpdates.points_earned = updates.pointsEarned
@@ -1277,6 +1488,31 @@ function App() {
   const deleteVisit = async (visitId) => {
     const target = visits.find((item) => item.id === visitId)
     if (!target || (!canManageVisit(target) && activeUser?.role !== 'superadmin')) {
+      return false
+    }
+
+    if (activeUser?.role === 'ops') {
+      const { data: requestedVisitRow, error: requestError } = await supabase
+        .from('visits')
+        .update({ status: 'جاري المسح' })
+        .eq('id', visitId)
+        .select('*')
+        .single()
+
+      if (requestError || !requestedVisitRow) {
+        console.error('Error requesting visit deletion:', requestError)
+        return false
+      }
+
+      const requestedVisit = mapVisitRow(requestedVisitRow)
+      setVisits((previous) =>
+        previous.map((visit) => (visit.id === visitId ? requestedVisit : visit)),
+      )
+
+      return 'requested'
+    }
+
+    if (activeUser?.role === 'admin') {
       return false
     }
 
@@ -1586,7 +1822,7 @@ function App() {
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
-    adminHasAssignments: assignedShopperIds.length > 0,
+    adminHasAssignments: true,
     addShopper,
     updateShopper,
     updateShopperStatus,
@@ -1599,9 +1835,27 @@ function App() {
     onLogout: handleLogout,
   }
 
+  const opsScopeProps = {
+    user: activeUser,
+    shoppers,
+    visits: visitsWithIssues,
+    issues: issuesWithVisitMeta,
+    offices,
+    evaluationCriteria,
+    pointsRules,
+    dataLoading: dataLoadingValue,
+    dataError: dataErrorValue,
+    isLive: true,
+    addVisit,
+    updateVisit,
+    deleteVisit,
+    onLogout: handleLogout,
+  }
+
   const superAdminScopeProps = {
     user: activeUser,
     superAdmins,
+    opsAdmins,
     subAdmins,
     shoppers,
     visits: visitsWithIssues,
@@ -1613,9 +1867,13 @@ function App() {
     dataError: dataErrorValue,
     isLive: true,
     canManageSuperAdmins,
+    canManageOpsAdmins,
     addSuperAdmin,
     updateSuperAdmin,
     deleteSuperAdmin,
+    addOpsAdmin,
+    updateOpsAdmin,
+    deleteOpsAdmin,
     addSubAdmin,
     updateSubAdmin,
     deleteSubAdmin,
@@ -1689,7 +1947,7 @@ function App() {
           <Route path="shoppers" element={<Shoppers />} />
           <Route path="visits" element={<Visits />} />
           <Route path="reports" element={<AdminReports />} />
-          <Route path="points" element={<Points />} />
+          {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
         </Route>
 
         <Route
@@ -1704,7 +1962,21 @@ function App() {
           <Route path="overview" element={<Overview />} />
           <Route path="visits" element={<Visits />} />
           <Route path="reports" element={<AdminReports />} />
-          <Route path="points" element={<Points />} />
+          {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
+        </Route>
+
+        <Route
+          path="/ops"
+          element={
+            <ProtectedRoute user={activeUser} allowedRole="ops">
+              <AdminLayout {...opsScopeProps} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<Overview />} />
+          <Route path="visits" element={<Visits />} />
+          <Route path="reports" element={<AdminReports />} />
         </Route>
 
         <Route

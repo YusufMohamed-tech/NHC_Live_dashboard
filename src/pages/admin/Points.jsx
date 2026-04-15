@@ -173,7 +173,7 @@ export default function Points() {
         <article className="rounded-xl border border-rose-200 bg-rose-50 p-4">
           <div className="mb-2 flex items-center gap-2 text-rose-700">
             <Medal className="h-4 w-4" />
-            <h4 className="font-black">نقاط المشاكل الموثقة</h4>
+            <h4 className="font-black">نقاط التحديات الموثقة</h4>
           </div>
           <ul className="space-y-1 text-sm text-rose-800">
             {pointsRules.issues.map((rule) => (

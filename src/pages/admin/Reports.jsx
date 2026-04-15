@@ -16,9 +16,9 @@ import { calculateWeightedScore } from '../../utils/scoring'
 
 const subTabs = [
   { key: 'overview', label: 'نظرة عامة' },
-  { key: 'offices', label: 'تقرير المنشآت' },
+  { key: 'offices', label: 'تقرير الفروع' },
   { key: 'shoppers', label: 'تقرير المتسوقين' },
-  { key: 'issues', label: 'تقرير المشاكل' },
+  { key: 'issues', label: 'تقرير التحديات' },
 ]
 
 function getSeverityClasses(severity) {
@@ -214,7 +214,7 @@ export default function Reports() {
   }))
   const hasShopperChartData = chartData.length > 0
 
-  const canExportPdf = user?.role === 'superadmin' || user?.role === 'admin'
+  const canExportPdf = ['superadmin', 'admin', 'ops'].includes(user?.role)
 
   const handleExport = async () => {
     if (!canExportPdf || isExporting) return
@@ -327,7 +327,7 @@ export default function Reports() {
               </p>
             </div>
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-              <p className="text-xs text-rose-700">المشاكل المكتشفة</p>
+              <p className="text-xs text-rose-700">التحديات</p>
               <p className="mt-1 text-2xl font-black text-rose-800">{issueSummary.total}</p>
             </div>
             <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
@@ -483,13 +483,13 @@ export default function Reports() {
       {activeSubTab === 'offices' && (
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <h3 className="font-display text-lg font-black text-slate-900">ترتيب المنشآت حسب التقييم</h3>
+            <h3 className="font-display text-lg font-black text-slate-900">ترتيب الفروع حسب التقييم</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="px-4 py-3 text-start font-black">المنشأة</th>
+                  <th className="px-4 py-3 text-start font-black">الفرع</th>
                   <th className="px-4 py-3 text-start font-black">المدينة</th>
                   <th className="px-4 py-3 text-start font-black">عدد الزيارات</th>
                   <th className="px-4 py-3 text-start font-black">متوسط التقييم</th>
@@ -521,7 +521,7 @@ export default function Reports() {
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs text-slate-500">إجمالي المشاكل</p>
+              <p className="text-xs text-slate-500">إجمالي التحديات</p>
               <p className="mt-1 text-2xl font-black text-slate-900">{issueSummary.total}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -539,7 +539,7 @@ export default function Reports() {
           </div>
 
           <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-display text-xl font-black text-slate-900">قائمة المشاكل الموثقة</h3>
+            <h3 className="font-display text-xl font-black text-slate-900">قائمة التحديات الموثقة</h3>
 
             <div className="mt-4 space-y-3">
               {issueRecords.map((issue, index) => (

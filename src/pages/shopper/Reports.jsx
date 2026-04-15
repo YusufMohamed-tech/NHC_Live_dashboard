@@ -206,7 +206,7 @@ export default function Reports() {
           <article className="rounded-xl border border-rose-200 bg-rose-50 p-4">
             <div className="flex items-center gap-2 text-rose-700">
               <AlertTriangle className="h-4 w-4" />
-              <p className="text-xs">المشاكل الموثقة</p>
+              <p className="text-xs">التحديات الموثقة</p>
             </div>
             <p className="mt-1 text-2xl font-black text-rose-800">{totalIssues}</p>
           </article>
@@ -293,7 +293,7 @@ export default function Reports() {
             <p className="mt-1 text-xl font-black text-sky-800">{pointsBreakdown.mediaPoints}</p>
           </div>
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-            <p className="text-xs text-rose-700">نقاط المشاكل الموثقة</p>
+            <p className="text-xs text-rose-700">نقاط التحديات الموثقة</p>
             <p className="mt-1 text-xl font-black text-rose-800">{pointsBreakdown.issuePoints}</p>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">

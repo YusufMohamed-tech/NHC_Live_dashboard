@@ -21,7 +21,7 @@ export default function Overview() {
       <section className="rounded-2xl bg-gradient-to-l from-indigo-700 via-violet-600 to-sky-500 p-6 text-white shadow-sm">
         <h2 className="font-display text-3xl font-black">نظرة عامة شاملة</h2>
         <p className="mt-2 text-sm text-white/85">
-          متابعة كاملة للمديرين والمتسوقين والزيارات على مستوى النظام
+          متابعة كاملة لسوبر أدمن والمديرين والمتسوقين والزيارات على مستوى النظام
         </p>
       </section>
 
@@ -49,7 +49,7 @@ export default function Overview() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-xl font-black text-slate-900">أداء المديرين الفرعيين</h3>
+          <h3 className="font-display text-xl font-black text-slate-900">أداء المديرين</h3>
           <Link
             to="/superadmin/managers"
             className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"

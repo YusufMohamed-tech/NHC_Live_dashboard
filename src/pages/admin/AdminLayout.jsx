@@ -8,22 +8,37 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import Footer from '../../components/Footer'
 import Navbar from '../../components/Navbar'
 
-const adminTabs = [
-  { label: 'نظرة عامة', to: '/admin/overview', icon: LayoutDashboard },
-  { label: 'الزيارات', to: '/admin/visits', icon: ScanSearch },
-  { label: 'التقارير', to: '/admin/reports', icon: BarChart3 },
-  { label: 'النقاط', to: '/admin/points', icon: Activity },
-]
+const SHOW_POINTS_SECTION = import.meta.env.DEV
 
-function getTitle(pathname) {
-  if (pathname.includes('/admin/visits')) return 'إدارة الزيارات'
-  if (pathname.includes('/admin/reports')) return 'التقارير والإحصائيات'
-  if (pathname.includes('/admin/points')) return 'إدارة النقاط'
-  return 'لوحة تحكم المدير الفرعي'
+function getTabs(role) {
+  const basePath = role === 'ops' ? '/ops' : '/admin'
+
+  const tabs = [
+    { label: 'نظرة عامة', to: `${basePath}/overview`, icon: LayoutDashboard },
+    { label: 'الزيارات', to: `${basePath}/visits`, icon: ScanSearch },
+    { label: 'التقارير', to: `${basePath}/reports`, icon: BarChart3 },
+  ]
+
+  if (role === 'admin' && SHOW_POINTS_SECTION) {
+    tabs.push({ label: 'النقاط', to: `${basePath}/points`, icon: Activity })
+  }
+
+  return tabs
+}
+
+function getTitle(pathname, role) {
+  if (pathname.includes('/visits')) return 'إدارة الزيارات'
+  if (pathname.includes('/reports')) return 'التقارير والإحصائيات'
+  if (pathname.includes('/points')) return 'إدارة النقاط'
+  if (role === 'ops') return 'لوحة تحكم Ops'
+  return 'لوحة تحكم المدير'
 }
 
 export default function AdminLayout(props) {
   const location = useLocation()
+  const role = props.user?.role === 'ops' ? 'ops' : 'admin'
+  const tabs = getTabs(role)
+  const sideTitle = role === 'ops' ? 'أقسام Ops' : 'أقسام المدير'
 
   const contextValue = {
     ...props,
@@ -35,7 +50,7 @@ export default function AdminLayout(props) {
     <div className="min-h-screen bg-slate-100 py-4 md:py-6">
       <div className="mx-auto max-w-7xl px-4">
         <Navbar
-          title={getTitle(location.pathname)}
+          title={getTitle(location.pathname, role)}
           user={props.user}
           onLogout={props.onLogout}
           showLiveIndicator={props.isLive}
@@ -43,9 +58,9 @@ export default function AdminLayout(props) {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[240px_1fr]">
           <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <h3 className="mb-2 px-2 text-sm font-black text-slate-700">أقسام المدير الفرعي</h3>
+            <h3 className="mb-2 px-2 text-sm font-black text-slate-700">{sideTitle}</h3>
             <nav className="grid gap-1">
-              {adminTabs.map((tab) => {
+              {tabs.map((tab) => {
                 const Icon = tab.icon
 
                 return (

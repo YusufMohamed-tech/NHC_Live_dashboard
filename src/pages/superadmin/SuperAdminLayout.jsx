@@ -10,14 +10,19 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import Footer from '../../components/Footer'
 import Navbar from '../../components/Navbar'
 
+const SHOW_POINTS_SECTION = import.meta.env.DEV
+
 const superAdminTabs = [
   { label: 'نظرة عامة', to: '/superadmin/overview', icon: LayoutDashboard },
   { label: 'إدارة المديرين', to: '/superadmin/managers', icon: ShieldCheck },
   { label: 'المتسوقون', to: '/superadmin/shoppers', icon: Users },
   { label: 'الزيارات', to: '/superadmin/visits', icon: ScanSearch },
   { label: 'التقارير', to: '/superadmin/reports', icon: BarChart3 },
-  { label: 'النقاط', to: '/superadmin/points', icon: Activity },
 ]
+
+if (SHOW_POINTS_SECTION) {
+  superAdminTabs.push({ label: 'النقاط', to: '/superadmin/points', icon: Activity })
+}
 
 function getTitle(pathname) {
   if (pathname.includes('/superadmin/managers')) return 'إدارة المديرين'
@@ -25,7 +30,7 @@ function getTitle(pathname) {
   if (pathname.includes('/superadmin/visits')) return 'إدارة الزيارات'
   if (pathname.includes('/superadmin/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/superadmin/points')) return 'إدارة النقاط'
-  return 'لوحة تحكم المدير العام'
+  return 'لوحة تحكم سوبر أدمن'
 }
 
 export default function SuperAdminLayout(props) {

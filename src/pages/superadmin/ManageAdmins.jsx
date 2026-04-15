@@ -21,6 +21,14 @@ const initialSuperAdminFormState = {
   status: 'نشط',
 }
 
+const initialOpsFormState = {
+  name: '',
+  email: '',
+  password: '',
+  city: '',
+  status: 'نشط',
+}
+
 function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase()
 }
@@ -58,12 +66,17 @@ export default function ManageAdmins() {
   const {
     user,
     canManageSuperAdmins,
+    canManageOpsAdmins,
     superAdmins,
+    opsAdmins,
     subAdmins,
     shoppers,
     addSuperAdmin,
     updateSuperAdmin,
     deleteSuperAdmin,
+    addOpsAdmin,
+    updateOpsAdmin,
+    deleteOpsAdmin,
     addSubAdmin,
     updateSubAdmin,
     deleteSubAdmin,
@@ -81,6 +94,9 @@ export default function ManageAdmins() {
   const [isAddSuperAdminModalOpen, setIsAddSuperAdminModalOpen] = useState(false)
   const [editingSuperAdmin, setEditingSuperAdmin] = useState(null)
   const [superAdminForm, setSuperAdminForm] = useState(initialSuperAdminFormState)
+  const [isAddOpsModalOpen, setIsAddOpsModalOpen] = useState(false)
+  const [editingOpsAdmin, setEditingOpsAdmin] = useState(null)
+  const [opsForm, setOpsForm] = useState(initialOpsFormState)
 
   const debouncedQuery = useDebouncedValue(query, 300)
 
@@ -98,6 +114,13 @@ export default function ManageAdmins() {
     })
   }, [debouncedQuery, subAdmins])
 
+  const filteredOpsAdmins = useMemo(() => {
+    return opsAdmins.filter((admin) => {
+      const target = `${admin.name} ${admin.email} ${admin.city}`
+      return target.toLowerCase().includes(debouncedQuery.toLowerCase())
+    })
+  }, [debouncedQuery, opsAdmins])
+
   const isEmailUsed = (email, excludeId = null) => {
     const normalized = normalizeEmail(email)
     if (!normalized) return false
@@ -110,7 +133,7 @@ export default function ManageAdmins() {
       return true
     }
 
-    return [...superAdmins, ...subAdmins].some(
+    return [...superAdmins, ...opsAdmins, ...subAdmins].some(
       (admin) => admin.id !== excludeId && normalizeEmail(admin.email) === normalized,
     )
   }
@@ -147,6 +170,10 @@ export default function ManageAdmins() {
     setSuperAdminForm(initialSuperAdminFormState)
   }
 
+  const resetOpsForm = () => {
+    setOpsForm(initialOpsFormState)
+  }
+
   const handleOpenAddModal = () => {
     resetForm()
     setEditingAdmin(null)
@@ -157,6 +184,12 @@ export default function ManageAdmins() {
     resetSuperAdminForm()
     setEditingSuperAdmin(null)
     setIsAddSuperAdminModalOpen(true)
+  }
+
+  const handleOpenAddOpsModal = () => {
+    resetOpsForm()
+    setEditingOpsAdmin(null)
+    setIsAddOpsModalOpen(true)
   }
 
   const handleOpenEditModal = (admin) => {
@@ -184,6 +217,18 @@ export default function ManageAdmins() {
     setIsAddSuperAdminModalOpen(false)
   }
 
+  const handleOpenEditOpsModal = (admin) => {
+    setEditingOpsAdmin(admin)
+    setOpsForm({
+      name: admin.name,
+      email: admin.email,
+      password: admin.password,
+      city: admin.city,
+      status: admin.status,
+    })
+    setIsAddOpsModalOpen(false)
+  }
+
   const handleOpenAssignModal = (admin) => {
     setAssigningAdmin(admin)
     setAssignmentsDraft(admin.assignedShopperIds ?? [])
@@ -206,7 +251,7 @@ export default function ManageAdmins() {
     event.preventDefault()
 
     if (!canManageSuperAdmins) {
-      window.alert('إنشاء مدير عام جديد متاح فقط للمدير العام الرئيسي.')
+      window.alert('إنشاء سوبر أدمن جديد متاح فقط للسوبر أدمن الرئيسي.')
       return
     }
 
@@ -218,6 +263,24 @@ export default function ManageAdmins() {
     await addSuperAdmin(superAdminForm)
     setIsAddSuperAdminModalOpen(false)
     resetSuperAdminForm()
+  }
+
+  const handleCreateOpsAdmin = async (event) => {
+    event.preventDefault()
+
+    if (!canManageOpsAdmins) {
+      window.alert('إنشاء حساب Ops متاح فقط للسوبر أدمن.')
+      return
+    }
+
+    if (isEmailUsed(opsForm.email)) {
+      window.alert('البريد الإلكتروني مستخدم بالفعل.')
+      return
+    }
+
+    await addOpsAdmin(opsForm)
+    setIsAddOpsModalOpen(false)
+    resetOpsForm()
   }
 
   const handleSaveEdit = async (event) => {
@@ -248,6 +311,20 @@ export default function ManageAdmins() {
     resetSuperAdminForm()
   }
 
+  const handleSaveOpsEdit = async (event) => {
+    event.preventDefault()
+    if (!editingOpsAdmin || !canManageOpsAdmins) return
+
+    if (isEmailUsed(opsForm.email, editingOpsAdmin.id)) {
+      window.alert('البريد الإلكتروني مستخدم بالفعل.')
+      return
+    }
+
+    await updateOpsAdmin(editingOpsAdmin.id, opsForm)
+    setEditingOpsAdmin(null)
+    resetOpsForm()
+  }
+
   const handleDeleteAdmin = async (adminId) => {
     const confirmed = window.confirm('هل أنت متأكد من حذف هذا المدير؟')
     if (!confirmed) return
@@ -261,10 +338,22 @@ export default function ManageAdmins() {
     const target = superAdmins.find((admin) => admin.id === adminId)
     if (!target) return
 
-    const confirmed = window.confirm(`هل أنت متأكد من حذف المدير العام ${target.name}؟`)
+    const confirmed = window.confirm(`هل أنت متأكد من حذف السوبر أدمن ${target.name}؟`)
     if (!confirmed) return
 
     await deleteSuperAdmin(adminId)
+  }
+
+  const handleDeleteOpsAdmin = async (adminId) => {
+    if (!canManageOpsAdmins) return
+
+    const target = opsAdmins.find((admin) => admin.id === adminId)
+    if (!target) return
+
+    const confirmed = window.confirm(`هل أنت متأكد من حذف حساب Ops ${target.name}؟`)
+    if (!confirmed) return
+
+    await deleteOpsAdmin(adminId)
   }
 
   const handleSaveAssignments = async () => {
@@ -290,7 +379,7 @@ export default function ManageAdmins() {
           <div>
             <h2 className="font-display text-2xl font-black text-slate-900">إدارة المديرين</h2>
             <p className="text-sm text-slate-500">
-              إدارة المديرين العامين والفرعيين وتوزيع المتسوقين على المديرين الفرعيين
+              إدارة حسابات سوبر أدمن وOps والمديرين وتوزيع المتسوقين على المديرين
             </p>
           </div>
 
@@ -302,7 +391,18 @@ export default function ManageAdmins() {
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-900"
               >
                 <ShieldCheck className="h-4 w-4" />
-                إضافة مدير عام
+                إضافة سوبر أدمن
+              </button>
+            )}
+
+            {canManageOpsAdmins && (
+              <button
+                type="button"
+                onClick={handleOpenAddOpsModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-fuchsia-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-fuchsia-800"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                إضافة حساب Ops
               </button>
             )}
 
@@ -312,7 +412,7 @@ export default function ManageAdmins() {
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
             >
               <Plus className="h-4 w-4" />
-              إضافة مدير فرعي
+              إضافة مدير
             </button>
           </div>
         </div>
@@ -332,7 +432,7 @@ export default function ManageAdmins() {
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
           <h3 className="flex items-center gap-2 text-sm font-black text-slate-800">
             <ShieldCheck className="h-4 w-4" />
-            المديرون العامون
+            حسابات سوبر أدمن
           </h3>
           <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
             {filteredSuperAdmins.length}
@@ -343,8 +443,8 @@ export default function ManageAdmins() {
           <div className="p-4">
             <EmptyState
               icon={ShieldCheck}
-              message="لا يوجد مديرون عامون إضافيون بعد"
-              actionLabel={canManageSuperAdmins ? 'إضافة مدير عام' : undefined}
+              message="لا توجد حسابات سوبر أدمن إضافية بعد"
+              actionLabel={canManageSuperAdmins ? 'إضافة سوبر أدمن' : undefined}
               onAction={canManageSuperAdmins ? handleOpenAddSuperAdminModal : undefined}
             />
           </div>
@@ -415,7 +515,88 @@ export default function ManageAdmins() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
-          <h3 className="text-sm font-black text-slate-800">المديرون الفرعيون</h3>
+          <h3 className="text-sm font-black text-slate-800">حسابات Ops</h3>
+          <span className="rounded-full bg-fuchsia-100 px-3 py-1 text-xs font-bold text-fuchsia-700">
+            {filteredOpsAdmins.length}
+          </span>
+        </div>
+
+        {filteredOpsAdmins.length === 0 ? (
+          <div className="p-4">
+            <EmptyState
+              icon={ShieldCheck}
+              message="لا توجد حسابات Ops بعد"
+              actionLabel={canManageOpsAdmins ? 'إضافة حساب Ops' : undefined}
+              onAction={canManageOpsAdmins ? handleOpenAddOpsModal : undefined}
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="px-4 py-3 text-start font-black">الاسم</th>
+                  <th className="px-4 py-3 text-start font-black">البريد</th>
+                  <th className="px-4 py-3 text-start font-black">المدينة</th>
+                  <th className="px-4 py-3 text-start font-black">الحالة</th>
+                  <th className="px-4 py-3 text-start font-black">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOpsAdmins.map((admin, index) => (
+                  <tr
+                    key={admin.id}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-fuchsia-50/50`}
+                  >
+                    <td className="px-4 py-3 font-bold text-slate-900">{admin.name}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.email}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.city}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          admin.status === 'نشط'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {admin.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {canManageOpsAdmins ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditOpsModal(admin)}
+                            className="rounded-lg border border-slate-300 p-2 text-slate-600 transition hover:bg-slate-100"
+                            title="تعديل"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOpsAdmin(admin.id)}
+                            className="rounded-lg border border-rose-300 p-2 text-rose-600 transition hover:bg-rose-50"
+                            title="حذف"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-500">عرض فقط</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h3 className="text-sm font-black text-slate-800">المديرون</h3>
           <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
             {filteredSubAdmins.length}
           </span>
@@ -426,7 +607,7 @@ export default function ManageAdmins() {
             <EmptyState
               icon={Users}
               message="لا يوجد مديرون بعد"
-              actionLabel="إضافة مدير فرعي"
+              actionLabel="إضافة مدير"
               onAction={handleOpenAddModal}
             />
           </div>
@@ -517,7 +698,7 @@ export default function ManageAdmins() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير عام</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة سوبر أدمن</h3>
               <button
                 type="button"
                 onClick={() => setIsAddSuperAdminModalOpen(false)}
@@ -591,7 +772,7 @@ export default function ManageAdmins() {
                 type="submit"
                 className="h-11 w-full rounded-xl bg-slate-800 text-sm font-bold text-white transition hover:bg-slate-900"
               >
-                إضافة مدير عام
+                إضافة سوبر أدمن
               </button>
             </form>
           </div>
@@ -602,7 +783,7 @@ export default function ManageAdmins() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">تعديل مدير عام</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">تعديل سوبر أدمن</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -686,11 +867,168 @@ export default function ManageAdmins() {
         </div>
       )}
 
+      {isAddOpsModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة حساب Ops</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddOpsModalOpen(false)}
+                className="rounded-lg border border-slate-300 p-1.5 text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOpsAdmin} className="mt-4 space-y-3">
+              <input
+                required
+                value={opsForm.name}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="الاسم الكامل"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={opsForm.email}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, email: event.target.value }))}
+                placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="password"
+                value={opsForm.password}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, password: event.target.value }))}
+                placeholder="كلمة المرور"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={opsForm.city}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, city: event.target.value }))}
+                placeholder="المدينة"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-sm font-semibold text-slate-700">الحالة</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpsForm((prev) => ({
+                      ...prev,
+                      status: prev.status === 'نشط' ? 'غير نشط' : 'نشط',
+                    }))
+                  }
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    opsForm.status === 'نشط'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {opsForm.status}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="h-11 w-full rounded-xl bg-fuchsia-700 text-sm font-bold text-white transition hover:bg-fuchsia-800"
+              >
+                إضافة حساب Ops
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingOpsAdmin && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-xl font-black text-slate-900">تعديل حساب Ops</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingOpsAdmin(null)
+                  resetOpsForm()
+                }}
+                className="rounded-lg border border-slate-300 p-1.5 text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOpsEdit} className="mt-4 space-y-3">
+              <input
+                required
+                value={opsForm.name}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="الاسم الكامل"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={opsForm.email}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, email: event.target.value }))}
+                placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="password"
+                value={opsForm.password}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, password: event.target.value }))}
+                placeholder="كلمة المرور"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={opsForm.city}
+                onChange={(event) => setOpsForm((prev) => ({ ...prev, city: event.target.value }))}
+                placeholder="المدينة"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-sm font-semibold text-slate-700">الحالة</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpsForm((prev) => ({
+                      ...prev,
+                      status: prev.status === 'نشط' ? 'غير نشط' : 'نشط',
+                    }))
+                  }
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    opsForm.status === 'نشط'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {opsForm.status}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="h-11 w-full rounded-xl bg-fuchsia-700 text-sm font-bold text-white transition hover:bg-fuchsia-800"
+              >
+                حفظ التعديلات
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isAddModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير فرعي</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة مدير</h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
@@ -767,7 +1105,7 @@ export default function ManageAdmins() {
                 type="submit"
                 className="h-11 w-full rounded-xl bg-indigo-600 text-sm font-bold text-white transition hover:bg-indigo-700"
               >
-                إضافة مدير فرعي
+                إضافة مدير
               </button>
             </form>
           </div>

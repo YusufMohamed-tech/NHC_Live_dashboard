@@ -10,6 +10,8 @@ const initialShopperForm = {
   email: '',
   password: '',
   city: '',
+  primaryPhone: '',
+  whatsappPhone: '',
   status: 'نشط',
 }
 
@@ -32,7 +34,7 @@ export default function Shoppers() {
 
   const filteredShoppers = useMemo(() => {
     return shoppers.filter((shopper) => {
-      const target = `${shopper.name} ${shopper.email} ${shopper.city}`
+      const target = `${shopper.name} ${shopper.email} ${shopper.city} ${shopper.primaryPhone ?? ''} ${shopper.whatsappPhone ?? ''}`
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, shoppers])
@@ -64,6 +66,8 @@ export default function Shoppers() {
       email: shopper.email,
       password: shopper.password ?? '',
       city: shopper.city,
+      primaryPhone: shopper.primaryPhone ?? '',
+      whatsappPhone: shopper.whatsappPhone ?? '',
       status: shopper.status,
     })
   }
@@ -159,6 +163,12 @@ export default function Shoppers() {
                       <div>
                         <p className="font-bold text-slate-900">{shopper.name}</p>
                         <p className="text-xs text-slate-500">{shopper.email}</p>
+                        <p className="text-xs text-slate-500">
+                          الأساسي: {shopper.primaryPhone || '-'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          واتساب: {shopper.whatsappPhone || '-'}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -282,6 +292,24 @@ export default function Shoppers() {
                 placeholder="المدينة"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
+              <input
+                required
+                value={newShopper.primaryPhone}
+                onChange={(event) =>
+                  setNewShopper((previous) => ({ ...previous, primaryPhone: event.target.value }))
+                }
+                placeholder="الرقم الأساسي"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={newShopper.whatsappPhone}
+                onChange={(event) =>
+                  setNewShopper((previous) => ({ ...previous, whatsappPhone: event.target.value }))
+                }
+                placeholder="رقم الواتساب"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
 
               <select
                 value={newShopper.status}
@@ -359,6 +387,24 @@ export default function Shoppers() {
                   setEditingForm((previous) => ({ ...previous, city: event.target.value }))
                 }
                 placeholder="المدينة"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={editingForm.primaryPhone}
+                onChange={(event) =>
+                  setEditingForm((previous) => ({ ...previous, primaryPhone: event.target.value }))
+                }
+                placeholder="الرقم الأساسي"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                value={editingForm.whatsappPhone}
+                onChange={(event) =>
+                  setEditingForm((previous) => ({ ...previous, whatsappPhone: event.target.value }))
+                }
+                placeholder="رقم الواتساب"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
 
