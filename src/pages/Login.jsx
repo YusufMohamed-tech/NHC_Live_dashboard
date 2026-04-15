@@ -1,26 +1,47 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  BadgeCheck,
-  Building2,
-  CircleGauge,
-  MapPinned,
+  ClipboardCheck,
+  LayoutGrid,
+  LogIn,
   ShieldCheck,
-  Users,
 } from 'lucide-react'
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate()
+  const [portal, setPortal] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
+  const isShopperPortal = portal === 'shopper'
+  const isManagerPortal = portal === 'manager'
+
+  const handleSelectPortal = (nextPortal) => {
+    setPortal(nextPortal)
+    setEmail('')
+    setPassword('')
+    setError('')
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (!portal) return
+
     const user = onLogin(email, password)
 
     if (!user) {
       setError('بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.')
+      return
+    }
+
+    if (isShopperPortal && user.role !== 'shopper') {
+      setError('هذا الحساب يتبع مدير النظام. اختر أيقونة مدير النظام.')
+      return
+    }
+
+    if (isManagerPortal && user.role === 'shopper') {
+      setError('هذا الحساب خاص بالمتسوق. اختر أيقونة متسوق سري.')
       return
     }
 
@@ -43,20 +64,64 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-      <div className="mx-auto grid min-h-[90vh] max-w-7xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl md:grid-cols-2">
-        <section className="flex flex-col justify-between p-6 md:p-10">
-          <div className="space-y-6">
-            <div>
-              <h1 className="font-display text-3xl font-black text-slate-900">
-                تسجيل الدخول
-              </h1>
-              <p className="mt-2 text-slate-500">
-                ادخل إلى منصة المتحري الخفي الخاصة بـ NHC
-              </p>
+    <div className="min-h-screen bg-slate-100 px-4 py-10">
+      <div className="mx-auto w-full max-w-5xl">
+        <section className="text-center">
+          <img
+            src="/branding/nhc-logo.png"
+            alt="NHC"
+            className="mx-auto h-20 w-20 object-contain"
+          />
+          <h1 className="mt-4 font-display text-5xl font-black text-slate-900 max-md:text-4xl">
+            نظام المتسوق السري
+          </h1>
+          <p className="mt-2 text-lg text-slate-500">اختر دورك للدخول إلى النظام</p>
+        </section>
+
+        <section className="mt-10 grid gap-4 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => handleSelectPortal('shopper')}
+            className={`rounded-3xl border bg-white p-7 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              isShopperPortal
+                ? 'border-blue-400 ring-2 ring-blue-200'
+                : 'border-slate-200'
+            }`}
+          >
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-500 text-white shadow-sm">
+              <ClipboardCheck className="h-10 w-10" />
+            </span>
+            <h2 className="mt-5 text-4xl font-black text-slate-900 max-md:text-3xl">متسوق سري</h2>
+            <p className="mt-2 text-base text-slate-500">تنفيذ الزيارات وإعداد التقييمات</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSelectPortal('manager')}
+            className={`rounded-3xl border bg-white p-7 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              isManagerPortal
+                ? 'border-emerald-400 ring-2 ring-emerald-200'
+                : 'border-slate-200'
+            }`}
+          >
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-700 text-white shadow-sm">
+              <LayoutGrid className="h-10 w-10" />
+            </span>
+            <h2 className="mt-5 text-4xl font-black text-slate-900 max-md:text-3xl">مدير النظام</h2>
+            <p className="mt-2 text-base text-slate-500">إدارة المشاريع والفرق ومتابعة الأداء</p>
+          </button>
+        </section>
+
+        {portal && (
+          <section className="mx-auto mt-6 w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display text-2xl font-black text-slate-900">تسجيل الدخول</h3>
+              <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700">
+                {isShopperPortal ? 'متسوق سري' : 'مدير النظام'}
+              </span>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">البريد الإلكتروني</label>
                 <input
@@ -89,75 +154,21 @@ export default function Login({ onLogin }) {
 
               <button
                 type="submit"
-                className="h-12 w-full rounded-xl bg-indigo-600 text-base font-bold text-white transition hover:bg-indigo-700"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 text-base font-bold text-white transition hover:bg-indigo-700"
               >
+                <LogIn className="h-4 w-4" />
                 دخول المنصة
               </button>
             </form>
+          </section>
+        )}
 
-          </div>
-
-          <div className="mt-6">
-            <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-              محمي باتفاقية عدم الإفصاح
-            </span>
-          </div>
-        </section>
-
-        <section className="relative overflow-hidden bg-gradient-to-br from-indigo-700 via-fuchsia-600 to-pink-600 p-6 text-white md:p-10">
-          <div className="absolute -start-16 top-10 h-52 w-52 rounded-full bg-white/15 blur-2xl" />
-          <div className="absolute -end-16 bottom-10 h-56 w-56 rounded-full bg-amber-300/30 blur-2xl" />
-
-          <div className="relative z-10 flex h-full flex-col justify-between">
-            <div className="space-y-6">
-              <div>
-                <p className="text-sm font-semibold text-white/80">منصة قياس تجربة العملاء</p>
-                <h2 className="mt-2 font-display text-4xl font-black leading-tight">
-                  برنامج المتحري الخفي
-                </h2>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3">
-                <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur-sm">
-                  <BadgeCheck className="h-4 w-4" />
-                  تقييم شامل
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur-sm">
-                  <CircleGauge className="h-4 w-4" />
-                  نظام نقاط
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur-sm">
-                  <MapPinned className="h-4 w-4" />
-                  تغطية وطنية
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <Users className="h-4 w-4" />
-                  المتسوقون
-                </div>
-                <p className="mt-2 text-2xl font-black">20+</p>
-              </div>
-              <div className="rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <Building2 className="h-4 w-4" />
-                  المدن المغطاة
-                </div>
-                <p className="mt-2 text-2xl font-black">10</p>
-              </div>
-              <div className="rounded-2xl bg-white/15 p-4 backdrop-blur-sm sm:col-span-2">
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <ShieldCheck className="h-4 w-4" />
-                  الزيارات السنوية
-                </div>
-                <p className="mt-2 text-2xl font-black">500+</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <div className="mt-6 text-center">
+          <span className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <ShieldCheck className="me-2 h-4 w-4" />
+            محمي باتفاقية عدم الإفصاح
+          </span>
+        </div>
       </div>
     </div>
   )
