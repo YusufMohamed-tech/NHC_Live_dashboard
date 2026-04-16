@@ -91,6 +91,11 @@ export default function TopBanner() {
           max-width: 320px;
           text-transform: none;
         }
+
+        .saas-powered-emphasis {
+          font-weight: 800;
+          color: rgba(15, 23, 42, 0.95);
+        }
       `}</style>
       
       <div className="saas-branding-pill" dir="ltr">
@@ -103,7 +108,7 @@ export default function TopBanner() {
         <div className="saas-divider" aria-hidden="true" />
         
         <span className="saas-powered-text">
-          Proudly Developed in Saudi Arabia by Chessboard Group
+          Proudly Developed in <strong className="saas-powered-emphasis">Saudi Arabia</strong> by Chessboard Group
         </span>
         
         <div className="saas-divider" aria-hidden="true" />
