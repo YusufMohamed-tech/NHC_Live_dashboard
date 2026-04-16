@@ -34,6 +34,11 @@ const SUPER_ADMIN_ACCOUNT = {
   role: 'superadmin',
 }
 
+const SUPABASE_FUNCTIONS_AUTH_TOKEN =
+  import.meta.env.VITE_SUPABASE_ANON_JWT?.trim() ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ||
+  ''
+
 const EMPTY_POINTS_RULES = {
   visits: [],
   issues: [],
@@ -75,6 +80,10 @@ function getRoleHome(role) {
 
 function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase()
+}
+
+function looksLikeJwt(value) {
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(String(value ?? '').trim())
 }
 
 function notificationEmailForUser(user) {
@@ -948,9 +957,17 @@ function App() {
       appBaseUrl,
     }
 
-    const { error } = await supabase.functions.invoke('send-visit-notification', {
+    const invokeOptions = {
       body: payload,
-    })
+    }
+
+    if (looksLikeJwt(SUPABASE_FUNCTIONS_AUTH_TOKEN)) {
+      invokeOptions.headers = {
+        Authorization: `Bearer ${SUPABASE_FUNCTIONS_AUTH_TOKEN}`,
+      }
+    }
+
+    const { error } = await supabase.functions.invoke('send-visit-notification', invokeOptions)
 
     if (error) {
       console.error('Failed to send visit notification:', error)
