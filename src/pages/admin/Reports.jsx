@@ -44,6 +44,13 @@ const subTabs = [
   { key: 'issues', label: 'التحديات' },
 ]
 
+const timeFilterOptions = [
+  { key: 'daily', label: 'يومي' },
+  { key: 'monthly', label: 'شهري' },
+  { key: 'yearly', label: 'سنوي' },
+  { key: 'custom', label: 'من تاريخ إلى تاريخ' },
+]
+
 const kpiToneClasses = {
   emerald: {
     card: 'border-emerald-200 bg-emerald-50',
@@ -71,6 +78,103 @@ function getScoreCellClasses(score) {
   if (score >= 4) return 'bg-emerald-100 text-emerald-700 border-emerald-200'
   if (score >= 2.5) return 'bg-amber-100 text-amber-700 border-amber-200'
   return 'bg-rose-100 text-rose-700 border-rose-200'
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0')
+}
+
+function parseRecordDate(dateValue) {
+  if (!dateValue) return null
+
+  if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+    return new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate())
+  }
+
+  const normalized = String(dateValue).trim()
+  if (!normalized) return null
+
+  const isoDatePart = normalized.slice(0, 10)
+  const [year, month, day] = isoDatePart.split('-').map(Number)
+  if (Number.isInteger(year) && Number.isInteger(month) && Number.isInteger(day)) {
+    const parsed = new Date(year, month - 1, day)
+    if (
+      parsed.getFullYear() === year &&
+      parsed.getMonth() === month - 1 &&
+      parsed.getDate() === day
+    ) {
+      return parsed
+    }
+  }
+
+  const fallback = new Date(normalized)
+  if (Number.isNaN(fallback.getTime())) return null
+  return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate())
+}
+
+function toDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+}
+
+function toMonthKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}`
+}
+
+function formatArabicDateLabel(dateKey) {
+  if (!dateKey) return '-'
+
+  const parsed = parseRecordDate(dateKey)
+  if (!parsed) return dateKey
+
+  return new Intl.DateTimeFormat('ar-SA', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function formatArabicMonthLabel(monthKey) {
+  if (!monthKey) return '-'
+
+  const [year, month] = monthKey.split('-').map(Number)
+  if (!Number.isInteger(year) || !Number.isInteger(month)) return monthKey
+
+  const parsed = new Date(year, month - 1, 1)
+  if (Number.isNaN(parsed.getTime())) return monthKey
+
+  return new Intl.DateTimeFormat('ar-SA', {
+    month: 'long',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function getTimeFilterLabel({
+  timeFilter,
+  dailyDate,
+  selectedMonth,
+  selectedYear,
+  rangeStart,
+  rangeEnd,
+}) {
+  if (timeFilter === 'daily') {
+    return `يومي: ${formatArabicDateLabel(dailyDate)}`
+  }
+
+  if (timeFilter === 'monthly') {
+    return `شهري: ${formatArabicMonthLabel(selectedMonth)}`
+  }
+
+  if (timeFilter === 'yearly') {
+    return `سنوي: ${selectedYear || '-'}`
+  }
+
+  if (rangeStart && rangeEnd) {
+    return `من ${formatArabicDateLabel(rangeStart)} إلى ${formatArabicDateLabel(rangeEnd)}`
+  }
+
+  return 'فترة مخصصة'
 }
 
 function KpiCard({ title, value, hint, icon, tone = 'emerald' }) {
@@ -126,6 +230,24 @@ export default function Reports() {
   const [activeSubTab, setActiveSubTab] = useState('overview')
   const [exportMode, setExportMode] = useState('')
   const [toast, setToast] = useState({ type: '', message: '' })
+  const [timeFilter, setTimeFilter] = useState('custom')
+  const [dailyDate, setDailyDate] = useState(() => toDateKey(new Date()))
+  const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()))
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()))
+  const [rangeFrom, setRangeFrom] = useState('')
+  const [rangeTo, setRangeTo] = useState('')
+
+  const visitDateKeys = useMemo(() => {
+    return visits
+      .map((visit) => toDateKey(parseRecordDate(visit.date)))
+      .filter(Boolean)
+      .sort()
+  }, [visits])
+
+  const minVisitDate = visitDateKeys[0] ?? ''
+  const maxVisitDate = visitDateKeys[visitDateKeys.length - 1] ?? ''
+  const minVisitMonth = minVisitDate ? minVisitDate.slice(0, 7) : ''
+  const maxVisitMonth = maxVisitDate ? maxVisitDate.slice(0, 7) : ''
 
   useEffect(() => {
     if (!toast.message) return undefined
@@ -137,14 +259,117 @@ export default function Reports() {
     return () => window.clearTimeout(timeout)
   }, [toast])
 
-  const dashboardStats = useDashboardStats({ shoppers, visits, issues })
+  useEffect(() => {
+    if (!minVisitDate || !maxVisitDate) return
+
+    setRangeFrom((current) => {
+      if (!current) return minVisitDate
+      if (current < minVisitDate) return minVisitDate
+      if (current > maxVisitDate) return maxVisitDate
+      return current
+    })
+
+    setRangeTo((current) => {
+      if (!current) return maxVisitDate
+      if (current < minVisitDate) return minVisitDate
+      if (current > maxVisitDate) return maxVisitDate
+      return current
+    })
+  }, [maxVisitDate, minVisitDate])
+
+  const availableYears = useMemo(() => {
+    const years = new Set(visitDateKeys.map((dateKey) => dateKey.slice(0, 4)))
+    if (years.size === 0) {
+      years.add(String(new Date().getFullYear()))
+    }
+
+    return [...years].sort((first, second) => Number(second) - Number(first))
+  }, [visitDateKeys])
+
+  useEffect(() => {
+    if (availableYears.includes(selectedYear)) return
+    setSelectedYear(availableYears[0])
+  }, [availableYears, selectedYear])
+
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    if (!rangeFrom && !rangeTo) {
+      return { rangeStart: '', rangeEnd: '' }
+    }
+
+    if (!rangeFrom) {
+      return { rangeStart: rangeTo, rangeEnd: rangeTo }
+    }
+
+    if (!rangeTo) {
+      return { rangeStart: rangeFrom, rangeEnd: rangeFrom }
+    }
+
+    if (rangeFrom <= rangeTo) {
+      return { rangeStart: rangeFrom, rangeEnd: rangeTo }
+    }
+
+    return { rangeStart: rangeTo, rangeEnd: rangeFrom }
+  }, [rangeFrom, rangeTo])
+
+  const filteredVisits = useMemo(() => {
+    return visits.filter((visit) => {
+      const visitDate = toDateKey(parseRecordDate(visit.date))
+      if (!visitDate) return false
+
+      if (timeFilter === 'daily') {
+        return dailyDate ? visitDate === dailyDate : true
+      }
+
+      if (timeFilter === 'monthly') {
+        return selectedMonth ? visitDate.startsWith(`${selectedMonth}-`) : true
+      }
+
+      if (timeFilter === 'yearly') {
+        return selectedYear ? visitDate.startsWith(`${selectedYear}-`) : true
+      }
+
+      if (rangeStart && visitDate < rangeStart) return false
+      if (rangeEnd && visitDate > rangeEnd) return false
+      return true
+    })
+  }, [dailyDate, rangeEnd, rangeStart, selectedMonth, selectedYear, timeFilter, visits])
+
+  const filteredVisitIds = useMemo(() => {
+    return new Set(filteredVisits.map((visit) => String(visit.id)))
+  }, [filteredVisits])
+
+  const filteredIssues = useMemo(() => {
+    return issues.filter((issue) => {
+      const visitId = issue.visitId ?? issue.visit_id
+      if (visitId == null) return false
+      return filteredVisitIds.has(String(visitId))
+    })
+  }, [filteredVisitIds, issues])
+
+  const dashboardStats = useDashboardStats({
+    shoppers,
+    visits: filteredVisits,
+    issues: filteredIssues,
+  })
 
   const analytics = useMemo(
-    () => buildVisitAnalytics({ visits, issues, evaluationCriteria }),
-    [evaluationCriteria, issues, visits],
+    () => buildVisitAnalytics({ visits: filteredVisits, issues: filteredIssues, evaluationCriteria }),
+    [evaluationCriteria, filteredIssues, filteredVisits],
   )
 
+  const activeTimeFilterLabel = useMemo(() => {
+    return getTimeFilterLabel({
+      timeFilter,
+      dailyDate,
+      selectedMonth,
+      selectedYear,
+      rangeStart,
+      rangeEnd,
+    })
+  }, [dailyDate, rangeEnd, rangeStart, selectedMonth, selectedYear, timeFilter])
+
   const canExportPdf = ['superadmin', 'admin', 'ops'].includes(user?.role)
+  const canExportCurrentSelection = canExportPdf && filteredVisits.length > 0
   const isExporting = exportMode !== ''
 
   const regionsSummary = useMemo(() => {
@@ -168,17 +393,22 @@ export default function Reports() {
   const handleSummaryExport = async () => {
     if (!canExportPdf || isExporting) return
 
+    if (filteredVisits.length === 0) {
+      setToast({ type: 'error', message: 'لا توجد زيارات ضمن الفترة الحالية لإصدار التقرير' })
+      return
+    }
+
     setExportMode('summary')
 
     try {
       await generateMysteryShopperPdf({
-        visits,
-        issues,
+        visits: filteredVisits,
+        issues: filteredIssues,
         evaluationCriteria,
         showPointsSection: SHOW_POINTS_SECTION,
       })
 
-      setToast({ type: 'success', message: 'تم إصدار التقرير بنجاح' })
+      setToast({ type: 'success', message: `تم إصدار التقرير بنجاح (${activeTimeFilterLabel})` })
     } catch {
       setToast({ type: 'error', message: 'تعذر إنشاء التقرير، حاول مرة أخرى' })
     } finally {
@@ -189,17 +419,22 @@ export default function Reports() {
   const handleDetailedExport = async () => {
     if (!canExportPdf || isExporting) return
 
+    if (filteredVisits.length === 0) {
+      setToast({ type: 'error', message: 'لا توجد زيارات ضمن الفترة الحالية لإصدار التقرير' })
+      return
+    }
+
     setExportMode('detailed')
 
     try {
       await generateMysteryShopperDetailedPdf({
-        visits,
-        issues,
+        visits: filteredVisits,
+        issues: filteredIssues,
         evaluationCriteria,
         showPointsSection: SHOW_POINTS_SECTION,
       })
 
-      setToast({ type: 'success', message: 'تم إصدار التقرير التفصيلي بنجاح' })
+      setToast({ type: 'success', message: `تم إصدار التقرير التفصيلي بنجاح (${activeTimeFilterLabel})` })
     } catch {
       setToast({ type: 'error', message: 'تعذر إنشاء التقرير التفصيلي، حاول مرة أخرى' })
     } finally {
@@ -250,7 +485,7 @@ export default function Reports() {
               <button
                 type="button"
                 onClick={handleSummaryExport}
-                disabled={isExporting}
+                disabled={isExporting || !canExportCurrentSelection}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {exportMode === 'summary' ? (
@@ -269,7 +504,7 @@ export default function Reports() {
               <button
                 type="button"
                 onClick={handleDetailedExport}
-                disabled={isExporting}
+                disabled={isExporting || !canExportCurrentSelection}
                 className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {exportMode === 'detailed' ? (
@@ -288,6 +523,104 @@ export default function Reports() {
           )}
         </div>
 
+        <section className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-wrap gap-2">
+            {timeFilterOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setTimeFilter(option.key)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  timeFilter === option.key
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {timeFilter === 'daily' && (
+              <label className="space-y-1 text-sm font-semibold text-slate-700">
+                تاريخ اليوم
+                <input
+                  type="date"
+                  value={dailyDate}
+                  min={minVisitDate || undefined}
+                  max={maxVisitDate || undefined}
+                  onChange={(event) => setDailyDate(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-500"
+                />
+              </label>
+            )}
+
+            {timeFilter === 'monthly' && (
+              <label className="space-y-1 text-sm font-semibold text-slate-700">
+                الشهر
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  min={minVisitMonth || undefined}
+                  max={maxVisitMonth || undefined}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-500"
+                />
+              </label>
+            )}
+
+            {timeFilter === 'yearly' && (
+              <label className="space-y-1 text-sm font-semibold text-slate-700">
+                السنة
+                <select
+                  value={selectedYear}
+                  onChange={(event) => setSelectedYear(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-500"
+                >
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {timeFilter === 'custom' && (
+              <>
+                <label className="space-y-1 text-sm font-semibold text-slate-700">
+                  من تاريخ
+                  <input
+                    type="date"
+                    value={rangeFrom}
+                    min={minVisitDate || undefined}
+                    max={maxVisitDate || undefined}
+                    onChange={(event) => setRangeFrom(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-500"
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm font-semibold text-slate-700">
+                  إلى تاريخ
+                  <input
+                    type="date"
+                    value={rangeTo}
+                    min={minVisitDate || undefined}
+                    max={maxVisitDate || undefined}
+                    onChange={(event) => setRangeTo(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-500"
+                  />
+                </label>
+              </>
+            )}
+          </div>
+
+          <p className="mt-3 text-xs font-semibold text-slate-600">
+            الفترة الحالية: {activeTimeFilterLabel} • {filteredVisits.length} من {visits.length} زيارة
+          </p>
+        </section>
+
         <div className="mt-4 flex flex-wrap gap-2">
           {subTabs.map((tab) => (
             <button
@@ -305,6 +638,12 @@ export default function Reports() {
           ))}
         </div>
       </section>
+
+      {filteredVisits.length === 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          لا توجد زيارات ضمن الفترة المحددة. عدّل الفلتر الزمني ثم أعد المحاولة.
+        </section>
+      )}
 
       {activeSubTab === 'overview' && (
         <section className="space-y-4">
@@ -458,32 +797,43 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {analytics.visitRows.map((visit, index) => (
-                  <tr
-                    key={visit.id}
-                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
-                  >
-                    <td className="px-4 py-3 font-semibold text-slate-900">{visit.officeName}</td>
-                    <td className="px-4 py-3 text-slate-600">{visit.city}</td>
-                    <td className="px-4 py-3 text-slate-600">{visit.date}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={visit.status} />
+                {analytics.visitRows.length > 0 ? (
+                  analytics.visitRows.map((visit, index) => (
+                    <tr
+                      key={visit.id}
+                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-900">{visit.officeName}</td>
+                      <td className="px-4 py-3 text-slate-600">{visit.city}</td>
+                      <td className="px-4 py-3 text-slate-600">{visit.date}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={visit.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
+                            visit.score,
+                          )}`}
+                        >
+                          {visit.score.toFixed(2)} / 5
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-700">{visit.issuesCount}</td>
+                      {SHOW_POINTS_SECTION && (
+                        <td className="px-4 py-3 font-bold text-amber-700">{visit.pointsEarned}</td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={SHOW_POINTS_SECTION ? 7 : 6}
+                      className="px-4 py-6 text-center text-sm font-semibold text-slate-500"
+                    >
+                      لا توجد زيارات ضمن الفترة المحددة.
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
-                          visit.score,
-                        )}`}
-                      >
-                        {visit.score.toFixed(2)} / 5
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-700">{visit.issuesCount}</td>
-                    {SHOW_POINTS_SECTION && (
-                      <td className="px-4 py-3 font-bold text-amber-700">{visit.pointsEarned}</td>
-                    )}
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -539,27 +889,35 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {analytics.cityPerformance.map((row, index) => (
-                    <tr
-                      key={row.city}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
-                    >
-                      <td className="px-4 py-3 font-semibold text-slate-900">{row.city}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.total}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.completed}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.completionRate}%</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
-                            row.average,
-                          )}`}
-                        >
-                          {row.average.toFixed(2)} / 5
-                        </span>
+                  {analytics.cityPerformance.length > 0 ? (
+                    analytics.cityPerformance.map((row, index) => (
+                      <tr
+                        key={row.city}
+                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40`}
+                      >
+                        <td className="px-4 py-3 font-semibold text-slate-900">{row.city}</td>
+                        <td className="px-4 py-3 text-slate-600">{row.total}</td>
+                        <td className="px-4 py-3 text-slate-600">{row.completed}</td>
+                        <td className="px-4 py-3 text-slate-600">{row.completionRate}%</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-bold ${getScoreCellClasses(
+                              row.average,
+                            )}`}
+                          >
+                            {row.average.toFixed(2)} / 5
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-rose-700">{row.issues}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                        لا توجد بيانات مناطق ضمن الفترة المحددة.
                       </td>
-                      <td className="px-4 py-3 font-bold text-rose-700">{row.issues}</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
