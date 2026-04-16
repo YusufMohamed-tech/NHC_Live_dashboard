@@ -22,12 +22,13 @@ supabase secrets set \
 ## Deploy function
 
 ```bash
-supabase functions deploy send-visit-notification
+supabase functions deploy send-visit-notification --no-verify-jwt
 ```
 
 ## Notes
 
 - The frontend invokes this function after visit lifecycle actions.
+- This function is deployed with `--no-verify-jwt` because the frontend uses Supabase publishable key flow and does not rely on Supabase Auth sessions.
 - CTA links are role-aware:
   - shopper: /shopper/visits/:visitId
   - superadmin: /superadmin/visits
