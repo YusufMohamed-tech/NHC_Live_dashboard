@@ -28,14 +28,14 @@ export default function TopBanner() {
           flex-direction: column;
           align-items: center;
           gap: 16px;
-          background: rgba(255, 255, 255, 0.08);
+          background: #ffffff;
           backdrop-filter: blur(10px);
           -webkit-backdrop-filter: blur(10px);
           border-radius: 16px;
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 8px 30px rgba(15, 23, 42, 0.16);
           padding: 16px 24px;
           transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(15, 23, 42, 0.12);
 
           /* Animation on load */
           opacity: 0;
@@ -45,8 +45,8 @@ export default function TopBanner() {
         /* Hover interaction */
         .saas-branding-pill:hover {
           transform: scale(1.02);
-          background: rgba(255, 255, 255, 0.12);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+          background: #ffffff;
+          box-shadow: 0 12px 40px rgba(15, 23, 42, 0.24);
         }
 
         .saas-brand-logo {
@@ -70,7 +70,7 @@ export default function TopBanner() {
         .saas-divider {
           width: 48px;
           height: 1px;
-          background: rgba(255, 255, 255, 0.2);
+          background: rgba(15, 23, 42, 0.2);
         }
 
         @media (min-width: 640px) {
@@ -85,7 +85,7 @@ export default function TopBanner() {
           font-size: 15px;
           font-weight: 500;
           letter-spacing: 0.8px;
-          color: rgba(255, 255, 255, 0.65);
+          color: rgba(15, 23, 42, 0.75);
           white-space: nowrap;
           text-transform: none;
         }
