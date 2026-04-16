@@ -11,5 +11,15 @@ drop policy if exists "Visit files: authenticated read" on storage.objects;
 drop policy if exists "Visit files: authenticated upload" on storage.objects;
 drop policy if exists "Visit files: authenticated delete" on storage.objects;
 
-delete from storage.objects where bucket_id = 'visit-files';
-delete from storage.buckets where id = 'visit-files';
+-- Direct deletion from storage.objects is blocked by Supabase SQL policies.
+-- Try deleting the bucket only if allowed and empty; otherwise keep artifacts orphan-safe.
+do $$
+begin
+  begin
+    delete from storage.buckets where id = 'visit-files';
+  exception
+    when others then
+      null;
+  end;
+end
+$$;
