@@ -114,6 +114,11 @@
     max-width: 260px;
   }
 
+  .co-brand-powered-secondary {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
   .co-brand-logo-chess {
     height: 24px;
     width: auto;

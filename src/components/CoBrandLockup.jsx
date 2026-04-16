@@ -31,7 +31,9 @@ export default function CoBrandLockup({
         <div className="co-brand-partner-block">
           <span className="co-brand-powered">
             {variant === 'print' ? 'في شراكة مع' : <>
-              Proudly Developed in <strong>Saudi Arabia</strong> by Chessboard Group
+              Proudly Developed in <strong>Saudi Arabia</strong>
+              <br />
+              <span className="co-brand-powered-secondary">by Chessboard Group</span>
             </>}
           </span>
           <img 
