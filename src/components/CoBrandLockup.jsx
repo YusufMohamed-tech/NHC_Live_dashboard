@@ -30,7 +30,7 @@ export default function CoBrandLockup({
 
         <div className="co-brand-partner-block">
           <span className="co-brand-powered">
-            {variant === 'print' ? 'في شراكة مع' : 'Powered by'}
+            {variant === 'print' ? 'في شراكة مع' : 'Proudly Developed in Saudi Arabia by Chessboard Group'}
           </span>
           <img 
             src="/branding/chessboard-logo.png" 

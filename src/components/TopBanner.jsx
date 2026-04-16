@@ -86,7 +86,9 @@ export default function TopBanner() {
           font-weight: 500;
           letter-spacing: 0.8px;
           color: rgba(15, 23, 42, 0.75);
-          white-space: nowrap;
+          white-space: normal;
+          text-align: center;
+          max-width: 320px;
           text-transform: none;
         }
       `}</style>
@@ -101,7 +103,7 @@ export default function TopBanner() {
         <div className="saas-divider" aria-hidden="true" />
         
         <span className="saas-powered-text">
-          Powered by Chessboard
+          Proudly Developed in Saudi Arabia by Chessboard Group
         </span>
         
         <div className="saas-divider" aria-hidden="true" />
