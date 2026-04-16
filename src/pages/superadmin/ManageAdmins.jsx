@@ -7,6 +7,7 @@ import useDebouncedValue from '../../hooks/useDebouncedValue'
 const initialFormState = {
   name: '',
   email: '',
+  personalEmail: '',
   password: '',
   city: '',
   status: 'نشط',
@@ -16,6 +17,7 @@ const initialFormState = {
 const initialSuperAdminFormState = {
   name: '',
   email: '',
+  personalEmail: '',
   password: '',
   city: '',
   status: 'نشط',
@@ -24,6 +26,7 @@ const initialSuperAdminFormState = {
 const initialOpsFormState = {
   name: '',
   email: '',
+  personalEmail: '',
   password: '',
   city: '',
   status: 'نشط',
@@ -102,21 +105,21 @@ export default function ManageAdmins() {
 
   const filteredSuperAdmins = useMemo(() => {
     return superAdmins.filter((admin) => {
-      const target = `${admin.name} ${admin.email} ${admin.city}`
+      const target = `${admin.name} ${admin.email} ${admin.personalEmail ?? ''} ${admin.city}`
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, superAdmins])
 
   const filteredSubAdmins = useMemo(() => {
     return subAdmins.filter((admin) => {
-      const target = `${admin.name} ${admin.email} ${admin.city}`
+      const target = `${admin.name} ${admin.email} ${admin.personalEmail ?? ''} ${admin.city}`
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, subAdmins])
 
   const filteredOpsAdmins = useMemo(() => {
     return opsAdmins.filter((admin) => {
-      const target = `${admin.name} ${admin.email} ${admin.city}`
+      const target = `${admin.name} ${admin.email} ${admin.personalEmail ?? ''} ${admin.city}`
       return target.toLowerCase().includes(debouncedQuery.toLowerCase())
     })
   }, [debouncedQuery, opsAdmins])
@@ -197,6 +200,7 @@ export default function ManageAdmins() {
     setForm({
       name: admin.name,
       email: admin.email,
+      personalEmail: admin.personalEmail ?? '',
       password: admin.password,
       city: admin.city,
       status: admin.status,
@@ -210,6 +214,7 @@ export default function ManageAdmins() {
     setSuperAdminForm({
       name: admin.name,
       email: admin.email,
+      personalEmail: admin.personalEmail ?? '',
       password: admin.password,
       city: admin.city,
       status: admin.status,
@@ -222,6 +227,7 @@ export default function ManageAdmins() {
     setOpsForm({
       name: admin.name,
       email: admin.email,
+      personalEmail: admin.personalEmail ?? '',
       password: admin.password,
       city: admin.city,
       status: admin.status,
@@ -422,7 +428,7 @@ export default function ManageAdmins() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="البحث باسم المدير أو البريد..."
+            placeholder="البحث باسم المدير أو البريد الأساسي/الشخصي..."
             className="h-11 w-full rounded-xl border border-slate-300 bg-white pe-10 ps-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </div>
@@ -455,6 +461,7 @@ export default function ManageAdmins() {
                 <tr>
                   <th className="px-4 py-3 text-start font-black">الاسم</th>
                   <th className="px-4 py-3 text-start font-black">البريد</th>
+                  <th className="px-4 py-3 text-start font-black">البريد الشخصي</th>
                   <th className="px-4 py-3 text-start font-black">المدينة</th>
                   <th className="px-4 py-3 text-start font-black">الحالة</th>
                   <th className="px-4 py-3 text-start font-black">الإجراءات</th>
@@ -468,6 +475,7 @@ export default function ManageAdmins() {
                   >
                     <td className="px-4 py-3 font-bold text-slate-900">{admin.name}</td>
                     <td className="px-4 py-3 text-slate-600">{admin.email}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.personalEmail || '-'}</td>
                     <td className="px-4 py-3 text-slate-600">{admin.city}</td>
                     <td className="px-4 py-3">
                       <span
@@ -537,6 +545,7 @@ export default function ManageAdmins() {
                 <tr>
                   <th className="px-4 py-3 text-start font-black">الاسم</th>
                   <th className="px-4 py-3 text-start font-black">البريد</th>
+                  <th className="px-4 py-3 text-start font-black">البريد الشخصي</th>
                   <th className="px-4 py-3 text-start font-black">المدينة</th>
                   <th className="px-4 py-3 text-start font-black">الحالة</th>
                   <th className="px-4 py-3 text-start font-black">الإجراءات</th>
@@ -550,6 +559,7 @@ export default function ManageAdmins() {
                   >
                     <td className="px-4 py-3 font-bold text-slate-900">{admin.name}</td>
                     <td className="px-4 py-3 text-slate-600">{admin.email}</td>
+                    <td className="px-4 py-3 text-slate-600">{admin.personalEmail || '-'}</td>
                     <td className="px-4 py-3 text-slate-600">{admin.city}</td>
                     <td className="px-4 py-3">
                       <span
@@ -618,6 +628,7 @@ export default function ManageAdmins() {
                 <tr>
                   <th className="px-4 py-3 text-start font-black">الاسم</th>
                   <th className="px-4 py-3 text-start font-black">البريد</th>
+                  <th className="px-4 py-3 text-start font-black">البريد الشخصي</th>
                   <th className="px-4 py-3 text-start font-black">المدينة</th>
                   <th className="px-4 py-3 text-start font-black">المتسوقون المعينون</th>
                   <th className="px-4 py-3 text-start font-black">الحالة</th>
@@ -637,6 +648,7 @@ export default function ManageAdmins() {
                     >
                       <td className="px-4 py-3 font-bold text-slate-900">{admin.name}</td>
                       <td className="px-4 py-3 text-slate-600">{admin.email}</td>
+                      <td className="px-4 py-3 text-slate-600">{admin.personalEmail || '-'}</td>
                       <td className="px-4 py-3 text-slate-600">{admin.city}</td>
                       <td className="px-4 py-3 text-slate-600">
                         <p className="font-semibold text-slate-700">
@@ -730,6 +742,16 @@ export default function ManageAdmins() {
               />
               <input
                 required
+                type="email"
+                value={superAdminForm.personalEmail}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
                 type="password"
                 value={superAdminForm.password}
                 onChange={(event) =>
@@ -818,6 +840,16 @@ export default function ManageAdmins() {
               />
               <input
                 required
+                type="email"
+                value={superAdminForm.personalEmail}
+                onChange={(event) =>
+                  setSuperAdminForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
                 type="password"
                 value={superAdminForm.password}
                 onChange={(event) =>
@@ -895,6 +927,16 @@ export default function ManageAdmins() {
                 value={opsForm.email}
                 onChange={(event) => setOpsForm((prev) => ({ ...prev, email: event.target.value }))}
                 placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={opsForm.personalEmail}
+                onChange={(event) =>
+                  setOpsForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
@@ -979,6 +1021,16 @@ export default function ManageAdmins() {
               />
               <input
                 required
+                type="email"
+                value={opsForm.personalEmail}
+                onChange={(event) =>
+                  setOpsForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
                 type="password"
                 value={opsForm.password}
                 onChange={(event) => setOpsForm((prev) => ({ ...prev, password: event.target.value }))}
@@ -1052,6 +1104,16 @@ export default function ManageAdmins() {
                 value={form.email}
                 onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
                 placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={form.personalEmail}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
@@ -1143,6 +1205,16 @@ export default function ManageAdmins() {
                 value={form.email}
                 onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
                 placeholder="البريد الإلكتروني"
+                className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
+              />
+              <input
+                required
+                type="email"
+                value={form.personalEmail}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, personalEmail: event.target.value }))
+                }
+                placeholder="البريد الشخصي للإشعارات"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input

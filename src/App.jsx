@@ -27,6 +27,9 @@ const SUPER_ADMIN_ACCOUNT = {
   id: 'superadmin-root',
   name: import.meta.env.VITE_SUPERADMIN_NAME?.trim() || 'سوبر أدمن',
   email: import.meta.env.VITE_SUPERADMIN_EMAIL?.trim() || 'superadmin@nhc.sa',
+  personalEmail:
+    import.meta.env.VITE_SUPERADMIN_PERSONAL_EMAIL?.trim() ||
+    'yusufmohamedyak55@gmail.com',
   password: import.meta.env.VITE_SUPERADMIN_PASSWORD?.trim() || '',
   role: 'superadmin',
 }
@@ -72,6 +75,22 @@ function getRoleHome(role) {
 
 function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase()
+}
+
+function notificationEmailForUser(user) {
+  const normalized = normalizeEmail(user?.personalEmail || user?.email)
+  return normalized || ''
+}
+
+function dedupeRecipientsByEmail(recipients) {
+  const seen = new Set()
+
+  return recipients.filter((recipient) => {
+    const email = normalizeEmail(recipient?.email)
+    if (!email || seen.has(email)) return false
+    seen.add(email)
+    return true
+  })
 }
 
 function toArabicUserStatus(value) {
@@ -175,10 +194,14 @@ function normalizeAssignedIds(value) {
 }
 
 function mapAdminRow(row) {
+  const personalEmail =
+    row.personal_email ?? row.secondary_email ?? row.email_personal ?? row.email ?? ''
+
   return {
     id: row.id,
     name: row.name ?? '',
     email: normalizeEmail(row.email),
+    personalEmail: normalizeEmail(personalEmail),
     password: row.password ?? '',
     city: row.city ?? '',
     status: toArabicUserStatus(row.status),
@@ -188,7 +211,7 @@ function mapAdminRow(row) {
 }
 
 function mapShopperRow(row) {
-  const personalEmail = row.personal_email ?? row.secondary_email ?? ''
+  const personalEmail = row.personal_email ?? row.secondary_email ?? row.email ?? ''
 
   return {
     id: row.id,
@@ -262,6 +285,52 @@ function mapPointsRules(rows) {
   })
 
   return next
+}
+
+async function insertAdminRecord(insertPayload) {
+  let { data, error } = await supabase.from('admins').insert([insertPayload]).select('*').single()
+
+  if (error && Object.hasOwn(insertPayload, 'personal_email')) {
+    const fallbackInsert = { ...insertPayload }
+    delete fallbackInsert.personal_email
+
+    const fallbackResult = await supabase
+      .from('admins')
+      .insert([fallbackInsert])
+      .select('*')
+      .single()
+
+    data = fallbackResult.data
+    error = fallbackResult.error
+  }
+
+  return { data, error }
+}
+
+async function updateAdminRecord(adminId, dbUpdates) {
+  let { data, error } = await supabase
+    .from('admins')
+    .update(dbUpdates)
+    .eq('id', adminId)
+    .select('*')
+    .single()
+
+  if (error && Object.hasOwn(dbUpdates, 'personal_email')) {
+    const fallbackUpdates = { ...dbUpdates }
+    delete fallbackUpdates.personal_email
+
+    const fallbackResult = await supabase
+      .from('admins')
+      .update(fallbackUpdates)
+      .eq('id', adminId)
+      .select('*')
+      .single()
+
+    data = fallbackResult.data
+    error = fallbackResult.error
+  }
+
+  return { data, error }
 }
 
 function findRulePoints(rules, category, matcher, fallback) {
@@ -407,6 +476,14 @@ function App() {
   const [pointsRules, setPointsRules] = useState(EMPTY_POINTS_RULES)
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState('')
+
+  const appBaseUrl = useMemo(() => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin
+    }
+
+    return ''
+  }, [])
 
   useEffect(() => {
     if (!SUPER_ADMIN_ACCOUNT.password) {
@@ -639,6 +716,7 @@ function App() {
       if (isRootSuperAdmin(authUser)) {
         return {
           ...authUser,
+          personalEmail: normalizeEmail(authUser.personalEmail ?? SUPER_ADMIN_ACCOUNT.personalEmail),
           role: 'superadmin',
           isRootSuperAdmin: true,
         }
@@ -780,6 +858,105 @@ function App() {
     return activeUser?.role === 'superadmin' || activeUser?.role === 'ops'
   }
 
+  const notificationRecipientsByRole = useMemo(() => {
+    const superadminRecipients = superAdmins
+      .filter((admin) => admin.status === 'نشط')
+      .map((admin) => ({
+        role: 'superadmin',
+        name: admin.name,
+        email: notificationEmailForUser(admin),
+      }))
+
+    const rootSuperAdminEmail = normalizeEmail(
+      SUPER_ADMIN_ACCOUNT.personalEmail || SUPER_ADMIN_ACCOUNT.email,
+    )
+
+    if (rootSuperAdminEmail) {
+      superadminRecipients.push({
+        role: 'superadmin',
+        name: SUPER_ADMIN_ACCOUNT.name,
+        email: rootSuperAdminEmail,
+      })
+    }
+
+    const adminRecipients = subAdmins
+      .filter((admin) => admin.status === 'نشط')
+      .map((admin) => ({
+        role: 'admin',
+        name: admin.name,
+        email: notificationEmailForUser(admin),
+      }))
+
+    const opsRecipients = opsAdmins
+      .filter((admin) => admin.status === 'نشط')
+      .map((admin) => ({
+        role: 'ops',
+        name: admin.name,
+        email: notificationEmailForUser(admin),
+      }))
+
+    return {
+      superadmins: dedupeRecipientsByEmail(superadminRecipients),
+      admins: dedupeRecipientsByEmail(adminRecipients),
+      ops: dedupeRecipientsByEmail(opsRecipients),
+    }
+  }, [opsAdmins, subAdmins, superAdmins])
+
+  const shoppersById = useMemo(() => {
+    return new Map(shoppers.map((shopper) => [shopper.id, shopper]))
+  }, [shoppers])
+
+  const serializeVisitForNotification = (visit) => {
+    if (!visit) return null
+
+    const assignedShopper = visit.assignedShopperId ? shoppersById.get(visit.assignedShopperId) : null
+
+    return {
+      id: visit.id,
+      officeName: visit.officeName,
+      city: visit.city,
+      date: visit.date,
+      time: visit.time,
+      status: visit.status,
+      scenario: visit.scenario,
+      membershipId: visit.membershipId,
+      assignedShopperId: visit.assignedShopperId,
+      assignedShopperName: assignedShopper?.name ?? null,
+    }
+  }
+
+  const notifyVisitEvent = async ({ eventType, visit, previousVisit = null, recipients = [] }) => {
+    const finalRecipients = dedupeRecipientsByEmail(recipients)
+    if (!eventType || !visit || finalRecipients.length === 0) return
+
+    const actor = activeUser
+      ? {
+          id: activeUser.id,
+          name: activeUser.name,
+          role: activeUser.role,
+          email: activeUser.email,
+          personalEmail: activeUser.personalEmail ?? '',
+        }
+      : null
+
+    const payload = {
+      eventType,
+      visit: serializeVisitForNotification(visit),
+      previousVisit: serializeVisitForNotification(previousVisit),
+      actor,
+      recipients: finalRecipients,
+      appBaseUrl,
+    }
+
+    const { error } = await supabase.functions.invoke('send-visit-notification', {
+      body: payload,
+    })
+
+    if (error) {
+      console.error('Failed to send visit notification:', error)
+    }
+  }
+
   const handleLogin = (email, password, options = {}) => {
     const commitSession = options.commit !== false
     const normalizedEmail = normalizeEmail(email)
@@ -793,6 +970,7 @@ function App() {
         id: SUPER_ADMIN_ACCOUNT.id,
         name: SUPER_ADMIN_ACCOUNT.name,
         email: SUPER_ADMIN_ACCOUNT.email,
+        personalEmail: normalizeEmail(SUPER_ADMIN_ACCOUNT.personalEmail),
         role: 'superadmin',
       }
 
@@ -815,6 +993,7 @@ function App() {
         id: managedSuperAdmin.id,
         name: managedSuperAdmin.name,
         email: managedSuperAdmin.email,
+        personalEmail: managedSuperAdmin.personalEmail ?? '',
         role: 'superadmin',
       }
 
@@ -837,6 +1016,7 @@ function App() {
         id: subAdmin.id,
         name: subAdmin.name,
         email: subAdmin.email,
+        personalEmail: subAdmin.personalEmail ?? '',
         role: 'admin',
         assignedShopperIds: subAdmin.assignedShopperIds ?? [],
       }
@@ -860,6 +1040,7 @@ function App() {
         id: opsAdmin.id,
         name: opsAdmin.name,
         email: opsAdmin.email,
+        personalEmail: opsAdmin.personalEmail ?? '',
         role: 'ops',
       }
 
@@ -882,6 +1063,7 @@ function App() {
         id: shopper.id,
         name: shopper.name,
         email: shopper.email,
+        personalEmail: shopper.personalEmail ?? '',
         role: 'shopper',
       }
 
@@ -909,6 +1091,7 @@ function App() {
     const insertPayload = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
+      personal_email: normalizeEmail(payload.personalEmail),
       password: payload.password,
       city: payload.city.trim(),
       status: toDbUserStatus(payload.status),
@@ -916,11 +1099,7 @@ function App() {
       assigned_shopper_ids: [],
     }
 
-    const { data: insertedAdmin, error } = await supabase
-      .from('admins')
-      .insert([insertPayload])
-      .select('*')
-      .single()
+    const { data: insertedAdmin, error } = await insertAdminRecord(insertPayload)
 
     if (error || !insertedAdmin) {
       console.error('Error adding super admin:', error)
@@ -942,17 +1121,16 @@ function App() {
     const dbUpdates = {
       name: updates.name ? updates.name.trim() : currentAdmin.name,
       email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
+      personal_email:
+        updates.personalEmail !== undefined
+          ? normalizeEmail(updates.personalEmail)
+          : currentAdmin.personalEmail,
       password: updates.password ?? currentAdmin.password,
       city: updates.city ? updates.city.trim() : currentAdmin.city,
       status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
     }
 
-    const { data: updatedAdminRow, error } = await supabase
-      .from('admins')
-      .update(dbUpdates)
-      .eq('id', superAdminId)
-      .select('*')
-      .single()
+    const { data: updatedAdminRow, error } = await updateAdminRecord(superAdminId, dbUpdates)
 
     if (error || !updatedAdminRow) {
       console.error('Error updating super admin:', error)
@@ -1007,6 +1185,7 @@ function App() {
     const insertPayload = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
+      personal_email: normalizeEmail(payload.personalEmail),
       password: payload.password,
       city: payload.city.trim(),
       status: toDbUserStatus(payload.status),
@@ -1014,11 +1193,7 @@ function App() {
       assigned_shopper_ids: [],
     }
 
-    const { data: insertedAdmin, error } = await supabase
-      .from('admins')
-      .insert([insertPayload])
-      .select('*')
-      .single()
+    const { data: insertedAdmin, error } = await insertAdminRecord(insertPayload)
 
     if (error || !insertedAdmin) {
       console.error('Error adding ops admin:', error)
@@ -1040,17 +1215,16 @@ function App() {
     const dbUpdates = {
       name: updates.name ? updates.name.trim() : currentAdmin.name,
       email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
+      personal_email:
+        updates.personalEmail !== undefined
+          ? normalizeEmail(updates.personalEmail)
+          : currentAdmin.personalEmail,
       password: updates.password ?? currentAdmin.password,
       city: updates.city ? updates.city.trim() : currentAdmin.city,
       status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
     }
 
-    const { data: updatedAdminRow, error } = await supabase
-      .from('admins')
-      .update(dbUpdates)
-      .eq('id', opsAdminId)
-      .select('*')
-      .single()
+    const { data: updatedAdminRow, error } = await updateAdminRecord(opsAdminId, dbUpdates)
 
     if (error || !updatedAdminRow) {
       console.error('Error updating ops admin:', error)
@@ -1109,6 +1283,7 @@ function App() {
     const insertPayload = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
+      personal_email: normalizeEmail(payload.personalEmail),
       password: payload.password,
       city: payload.city.trim(),
       status: toDbUserStatus(payload.status),
@@ -1116,11 +1291,7 @@ function App() {
       assigned_shopper_ids: validAssigned,
     }
 
-    const { data: insertedAdmin, error } = await supabase
-      .from('admins')
-      .insert([insertPayload])
-      .select('*')
-      .single()
+    const { data: insertedAdmin, error } = await insertAdminRecord(insertPayload)
 
     if (error || !insertedAdmin) {
       console.error('Error adding admin:', error)
@@ -1147,18 +1318,17 @@ function App() {
     const dbUpdates = {
       name: updates.name ? updates.name.trim() : currentAdmin.name,
       email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
+      personal_email:
+        updates.personalEmail !== undefined
+          ? normalizeEmail(updates.personalEmail)
+          : currentAdmin.personalEmail,
       password: updates.password ?? currentAdmin.password,
       city: updates.city ? updates.city.trim() : currentAdmin.city,
       status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
       assigned_shopper_ids: validAssigned,
     }
 
-    const { data: updatedAdminRow, error } = await supabase
-      .from('admins')
-      .update(dbUpdates)
-      .eq('id', subAdminId)
-      .select('*')
-      .single()
+    const { data: updatedAdminRow, error } = await updateAdminRecord(subAdminId, dbUpdates)
 
     if (error || !updatedAdminRow) {
       console.error('Error updating admin:', error)
@@ -1421,6 +1591,38 @@ function App() {
     const nextVisit = mapVisitRow(dbVisit)
 
     setVisits((previous) => [nextVisit, ...previous])
+
+    const adminRoleRecipients = dedupeRecipientsByEmail([
+      ...notificationRecipientsByRole.superadmins,
+      ...notificationRecipientsByRole.admins,
+      ...notificationRecipientsByRole.ops,
+    ])
+
+    void notifyVisitEvent({
+      eventType: 'visit_created',
+      visit: nextVisit,
+      recipients: adminRoleRecipients,
+    })
+
+    if (nextVisit.assignedShopperId) {
+      const assignedShopper = shoppersById.get(nextVisit.assignedShopperId)
+      const shopperEmail = notificationEmailForUser(assignedShopper)
+
+      if (shopperEmail) {
+        void notifyVisitEvent({
+          eventType: 'visit_assigned',
+          visit: nextVisit,
+          recipients: [
+            {
+              role: 'shopper',
+              name: assignedShopper?.name ?? '',
+              email: shopperEmail,
+            },
+          ],
+        })
+      }
+    }
+
     return nextVisit
   }
 
@@ -1476,6 +1678,71 @@ function App() {
       previous.map((visit) => (visit.id === visitId ? updatedVisit : visit)),
     )
 
+    const adminRoleRecipients = dedupeRecipientsByEmail([
+      ...notificationRecipientsByRole.superadmins,
+      ...notificationRecipientsByRole.admins,
+      ...notificationRecipientsByRole.ops,
+    ])
+
+    const changedKeys = Object.keys(dbUpdates)
+    const assignmentChanged = targetVisit.assignedShopperId !== updatedVisit.assignedShopperId
+    const isReassigned =
+      Boolean(targetVisit.assignedShopperId) &&
+      Boolean(updatedVisit.assignedShopperId) &&
+      targetVisit.assignedShopperId !== updatedVisit.assignedShopperId
+
+    if (isReassigned) {
+      void notifyVisitEvent({
+        eventType: 'visit_reassigned',
+        visit: updatedVisit,
+        previousVisit: targetVisit,
+        recipients: adminRoleRecipients,
+      })
+    }
+
+    if (assignmentChanged && updatedVisit.assignedShopperId) {
+      const assignedShopper = shoppersById.get(updatedVisit.assignedShopperId)
+      const shopperEmail = notificationEmailForUser(assignedShopper)
+
+      if (shopperEmail) {
+        void notifyVisitEvent({
+          eventType: 'visit_assigned',
+          visit: updatedVisit,
+          previousVisit: targetVisit,
+          recipients: [
+            {
+              role: 'shopper',
+              name: assignedShopper?.name ?? '',
+              email: shopperEmail,
+            },
+          ],
+        })
+      }
+    }
+
+    const statusBecameCompleted =
+      targetVisit.status !== 'مكتملة' && updatedVisit.status === 'مكتملة'
+
+    if (statusBecameCompleted) {
+      void notifyVisitEvent({
+        eventType: 'visit_completed',
+        visit: updatedVisit,
+        previousVisit: targetVisit,
+        recipients: adminRoleRecipients,
+      })
+    } else {
+      const hasNonAssignmentChanges = changedKeys.some((key) => key !== 'shopper_id')
+
+      if (hasNonAssignmentChanges) {
+        void notifyVisitEvent({
+          eventType: 'visit_updated',
+          visit: updatedVisit,
+          previousVisit: targetVisit,
+          recipients: adminRoleRecipients,
+        })
+      }
+    }
+
     return updatedVisit
   }
 
@@ -1502,6 +1769,13 @@ function App() {
       setVisits((previous) =>
         previous.map((visit) => (visit.id === visitId ? requestedVisit : visit)),
       )
+
+      void notifyVisitEvent({
+        eventType: 'visit_delete_requested',
+        visit: requestedVisit,
+        previousVisit: target,
+        recipients: notificationRecipientsByRole.superadmins,
+      })
 
       return 'requested'
     }
@@ -1727,6 +2001,20 @@ function App() {
       const remaining = previous.filter((issue) => issue.visitId !== visitId)
 
       return [...remaining, ...insertedIssues]
+    })
+
+    const completedVisit = mapVisitRow(updatedVisitRow)
+    const adminRoleRecipients = dedupeRecipientsByEmail([
+      ...notificationRecipientsByRole.superadmins,
+      ...notificationRecipientsByRole.admins,
+      ...notificationRecipientsByRole.ops,
+    ])
+
+    void notifyVisitEvent({
+      eventType: 'visit_completed',
+      visit: completedVisit,
+      previousVisit: targetVisit,
+      recipients: adminRoleRecipients,
     })
 
     return finalVisitPoints

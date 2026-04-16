@@ -283,12 +283,13 @@ export default function Shoppers() {
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
+                required
                 type="email"
                 value={newShopper.personalEmail}
                 onChange={(event) =>
                   setNewShopper((previous) => ({ ...previous, personalEmail: event.target.value }))
                 }
-                placeholder="البريد الشخصي"
+                placeholder="البريد الشخصي للإشعارات"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
@@ -389,12 +390,13 @@ export default function Shoppers() {
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
+                required
                 type="email"
                 value={editingForm.personalEmail}
                 onChange={(event) =>
                   setEditingForm((previous) => ({ ...previous, personalEmail: event.target.value }))
                 }
-                placeholder="البريد الشخصي"
+                placeholder="البريد الشخصي للإشعارات"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
