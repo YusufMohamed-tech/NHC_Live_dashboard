@@ -39,6 +39,14 @@ const SUPABASE_FUNCTIONS_AUTH_TOKEN =
   import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ||
   ''
 
+const SUPABASE_FUNCTIONS_PUBLIC_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || ''
+
+const SUPABASE_FUNCTIONS_ENDPOINT = (() => {
+  const baseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim().replace(/\/$/, '')
+  if (!baseUrl) return ''
+  return `${baseUrl}/functions/v1/send-visit-notification`
+})()
+
 const EMPTY_POINTS_RULES = {
   visits: [],
   issues: [],
@@ -936,7 +944,9 @@ function App() {
 
   const notifyVisitEvent = async ({ eventType, visit, previousVisit = null, recipients = [] }) => {
     const finalRecipients = dedupeRecipientsByEmail(recipients)
-    if (!eventType || !visit || finalRecipients.length === 0) return
+    if (!eventType || !visit || finalRecipients.length === 0) {
+      return { sent: 0, failed: 0, failures: [] }
+    }
 
     const actor = activeUser
       ? {
@@ -957,20 +967,84 @@ function App() {
       appBaseUrl,
     }
 
-    const invokeOptions = {
-      body: payload,
-    }
+    const authHeaders = {}
 
     if (looksLikeJwt(SUPABASE_FUNCTIONS_AUTH_TOKEN)) {
-      invokeOptions.headers = {
-        Authorization: `Bearer ${SUPABASE_FUNCTIONS_AUTH_TOKEN}`,
+      authHeaders.Authorization = `Bearer ${SUPABASE_FUNCTIONS_AUTH_TOKEN}`
+    }
+
+    const invokeOptions = {
+      body: payload,
+      ...(Object.keys(authHeaders).length > 0 ? { headers: authHeaders } : {}),
+    }
+
+    const { data, error } = await supabase.functions.invoke('send-visit-notification', invokeOptions)
+
+    if (!error) {
+      const sent = Number(data?.sent ?? 0)
+      const failed = Number(data?.failed ?? 0)
+      const failures = Array.isArray(data?.failures) ? data.failures : []
+
+      if (failed > 0) {
+        console.error('Visit notification returned recipient failures:', failures)
+      }
+
+      return { sent, failed, failures }
+    }
+
+    console.error('Failed to send visit notification through SDK invoke:', error)
+
+    if (!SUPABASE_FUNCTIONS_ENDPOINT || !SUPABASE_FUNCTIONS_PUBLIC_KEY) {
+      return {
+        sent: 0,
+        failed: finalRecipients.length,
+        failures: [{ error: 'Function fallback endpoint or public key is missing' }],
       }
     }
 
-    const { error } = await supabase.functions.invoke('send-visit-notification', invokeOptions)
+    try {
+      const fallbackHeaders = {
+        apikey: SUPABASE_FUNCTIONS_PUBLIC_KEY,
+        'Content-Type': 'application/json',
+        ...(authHeaders.Authorization ? { Authorization: authHeaders.Authorization } : {}),
+      }
 
-    if (error) {
-      console.error('Failed to send visit notification:', error)
+      const response = await fetch(SUPABASE_FUNCTIONS_ENDPOINT, {
+        method: 'POST',
+        headers: fallbackHeaders,
+        body: JSON.stringify(payload),
+      })
+
+      const rawBody = await response.text()
+      const parsedBody = rawBody ? JSON.parse(rawBody) : null
+
+      if (!response.ok) {
+        throw new Error(parsedBody?.error || rawBody || `HTTP ${response.status}`)
+      }
+
+      const sent = Number(parsedBody?.sent ?? 0)
+      const failed = Number(parsedBody?.failed ?? 0)
+      const failures = Array.isArray(parsedBody?.failures) ? parsedBody.failures : []
+
+      if (failed > 0) {
+        console.error('Visit notification fallback returned recipient failures:', failures)
+      }
+
+      return { sent, failed, failures }
+    } catch (fallbackError) {
+      console.error('Failed to send visit notification through fallback request:', fallbackError)
+      return {
+        sent: 0,
+        failed: finalRecipients.length,
+        failures: [
+          {
+            error:
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : 'Unknown notification fallback error',
+          },
+        ],
+      }
     }
   }
 
@@ -1615,18 +1689,22 @@ function App() {
       ...notificationRecipientsByRole.ops,
     ])
 
-    void notifyVisitEvent({
+    const creationNotification = await notifyVisitEvent({
       eventType: 'visit_created',
       visit: nextVisit,
       recipients: adminRoleRecipients,
     })
+
+    if (creationNotification.failed > 0 && creationNotification.sent === 0) {
+      window.alert('تم حفظ الزيارة لكن تعذر إرسال إشعار البريد الإلكتروني.')
+    }
 
     if (nextVisit.assignedShopperId) {
       const assignedShopper = shoppersById.get(nextVisit.assignedShopperId)
       const shopperEmail = notificationEmailForUser(assignedShopper)
 
       if (shopperEmail) {
-        void notifyVisitEvent({
+        const assignedNotification = await notifyVisitEvent({
           eventType: 'visit_assigned',
           visit: nextVisit,
           recipients: [
@@ -1637,6 +1715,10 @@ function App() {
             },
           ],
         })
+
+        if (assignedNotification.failed > 0 && assignedNotification.sent === 0) {
+          console.error('Failed to deliver assigned-shopper notification:', assignedNotification.failures)
+        }
       }
     }
 
