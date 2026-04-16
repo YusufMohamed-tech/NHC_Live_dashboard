@@ -33,7 +33,7 @@ export default function CoBrandLockup({
             {variant === 'print' ? 'في شراكة مع' : 'Powered by'}
           </span>
           <img 
-            src="/branding/chessboard-logo.jpeg" 
+            src="/branding/chessboard-logo.png" 
             alt="Chessboard technology partner" 
             className="co-brand-logo-chess" 
           />

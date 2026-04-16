@@ -62,7 +62,7 @@ async function registerArabicFont(doc) {
 async function loadReportBrandingAssets(doc) {
   const [nhcLogo, chessLogo, fontFamily] = await Promise.all([
     fetchAssetAsDataUrl('/branding/nhc-logo.png'),
-    fetchAssetAsDataUrl('/branding/chessboard-logo.jpeg'),
+    fetchAssetAsDataUrl('/branding/chessboard-logo.png'),
     registerArabicFont(doc),
   ])
 
@@ -169,7 +169,7 @@ function drawPdfReportHeader(doc, assets, { pageWidth, y = 0, withBackground = t
     width: 182,
     height: logoHeight,
     imageData: assets.chessLogo,
-    imageType: 'JPEG',
+    imageType: 'PNG',
   })
 
   drawLogoCard(doc, {

@@ -107,7 +107,7 @@ export default function TopBanner() {
         <div className="saas-divider" aria-hidden="true" />
         
         <img
-          src="/branding/chessboard-logo.jpeg"
+          src="/branding/chessboard-logo.png"
           alt="Chessboard Technology Partner"
           className="saas-brand-logo"
         />
