@@ -19,6 +19,7 @@ const ShopperReports = lazy(() => import('./pages/shopper/Reports'))
 const SuperAdminLayout = lazy(() => import('./pages/superadmin/SuperAdminLayout'))
 const SuperAdminOverview = lazy(() => import('./pages/superadmin/Overview'))
 const ManageAdmins = lazy(() => import('./pages/superadmin/ManageAdmins'))
+const NotificationCenter = lazy(() => import('./pages/NotificationCenter'))
 
 const AUTH_STORAGE_KEY = 'nhc-mystery-auth'
 const SHOW_POINTS_SECTION = import.meta.env.DEV
@@ -108,6 +109,99 @@ function dedupeRecipientsByEmail(recipients) {
     seen.add(email)
     return true
   })
+}
+
+function dedupeNotificationRecipients(recipients) {
+  const seen = new Set()
+
+  return recipients.filter((recipient) => {
+    const role = String(recipient?.role ?? '').trim()
+    if (!role) return false
+
+    const userId = String(recipient?.id ?? '').trim()
+    const email = normalizeEmail(recipient?.email)
+    const name = String(recipient?.name ?? '').trim().toLowerCase()
+    const identity = userId || email || name
+
+    if (!identity) return false
+
+    const key = `${role}:${identity}`
+    if (seen.has(key)) return false
+
+    seen.add(key)
+    return true
+  })
+}
+
+function getInAppNotificationContent(eventType, visit, recipientRole) {
+  const office = String(visit?.officeName ?? '').trim() || 'مكتب غير محدد'
+  const city = String(visit?.city ?? '').trim()
+  const date = String(visit?.date ?? '').trim()
+  const time = String(visit?.time ?? '').trim()
+
+  const suffixParts = [office, city, date, time].filter(Boolean)
+  const suffix = suffixParts.length > 0 ? ` (${suffixParts.join(' - ')})` : ''
+
+  if (eventType === 'visit_created') {
+    return {
+      title: 'تم إنشاء زيارة جديدة',
+      description:
+        recipientRole === 'superadmin'
+          ? `تم إنشاء زيارة جديدة مع جميع التفاصيل${suffix}`
+          : `تم إنشاء زيارة جديدة${suffix}`,
+    }
+  }
+
+  if (eventType === 'visit_assigned') {
+    return {
+      title: recipientRole === 'shopper' ? 'تم إسناد زيارة جديدة لك' : 'تم إسناد زيارة جديدة',
+      description: `يرجى مراجعة بيانات الزيارة${suffix}`,
+    }
+  }
+
+  if (eventType === 'visit_delete_requested') {
+    return {
+      title: 'طلب حذف زيارة',
+      description: `تم إرسال طلب حذف زيارة من فريق العمليات${suffix}`,
+    }
+  }
+
+  if (eventType === 'visit_updated') {
+    return {
+      title: 'تم تعديل زيارة',
+      description: `تم تحديث بيانات زيارة في النظام${suffix}`,
+    }
+  }
+
+  if (eventType === 'visit_completed') {
+    return {
+      title: 'تم إكمال زيارة',
+      description: `تم إكمال الزيارة بنجاح${suffix}`,
+    }
+  }
+
+  return {
+    title: 'تمت إعادة إسناد زيارة',
+    description: `تم تغيير المتسوق المكلف بالزيارة${suffix}`,
+  }
+}
+
+function isMissingTableError(error, tableName) {
+  const table = String(tableName ?? '').trim()
+  if (!table) return false
+
+  const message = String(error?.message ?? '').toLowerCase()
+  const details = String(error?.details ?? '').toLowerCase()
+  const hint = String(error?.hint ?? '').toLowerCase()
+
+  const lookup = table.toLowerCase()
+  return (
+    message.includes('does not exist') && message.includes(lookup)
+  ) || (
+    details.includes('does not exist') && details.includes(lookup)
+  ) || (
+    hint.includes('create table') && hint.includes(lookup)
+  )
 }
 
 function toArabicUserStatus(value) {
@@ -271,6 +365,23 @@ function mapIssueRow(row) {
     severity: row.severity,
     description: row.description,
     createdAt: row.created_at,
+  }
+}
+
+function mapNotificationRow(row) {
+  return {
+    id: row.id,
+    recipientRole: row.recipient_role ?? '',
+    recipientUserId: row.recipient_user_id ?? null,
+    recipientEmail: normalizeEmail(row.recipient_email),
+    title: row.title ?? '',
+    description: row.description ?? '',
+    eventType: row.event_type ?? '',
+    visitId: row.visit_id ?? null,
+    payload: row.payload && typeof row.payload === 'object' ? row.payload : {},
+    isRead: Boolean(row.is_read),
+    readAt: row.read_at ?? null,
+    createdAt: row.created_at ?? new Date().toISOString(),
   }
 }
 
@@ -488,6 +599,8 @@ function App() {
   const [shoppers, setShoppers] = useState([])
   const [visits, setVisits] = useState([])
   const [issues, setIssues] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [offices, setOffices] = useState([])
   const [evaluationCriteria, setEvaluationCriteria] = useState([])
   const [pointsRules, setPointsRules] = useState(EMPTY_POINTS_RULES)
@@ -521,6 +634,7 @@ function App() {
           { data: shoppersData, error: shoppersError },
           { data: visitsData, error: visitsError },
           { data: issuesData, error: issuesError },
+          { data: notificationsData, error: notificationsError },
           { data: officesData, error: officesError },
           { data: criteriaData, error: criteriaError },
           { data: pointsData, error: pointsError },
@@ -529,6 +643,7 @@ function App() {
           supabase.from('shoppers').select('*'),
           supabase.from('visits').select('*'),
           supabase.from('issues').select('*'),
+          supabase.from('notifications').select('*').order('created_at', { ascending: false }),
           supabase.from('offices').select('*'),
           supabase.from('evaluation_criteria').select('*').order('key'),
           supabase.from('points_rules').select('*'),
@@ -538,6 +653,9 @@ function App() {
         if (shoppersError) throw shoppersError
         if (visitsError) throw visitsError
         if (issuesError) throw issuesError
+        if (notificationsError && !isMissingTableError(notificationsError, 'notifications')) {
+          throw notificationsError
+        }
         if (officesError) throw officesError
         if (criteriaError) throw criteriaError
         if (pointsError) throw pointsError
@@ -552,6 +670,7 @@ function App() {
           const mappedShoppers = (shoppersData ?? []).map(mapShopperRow)
           const mappedVisits = (visitsData ?? []).map(mapVisitRow)
           const mappedIssues = (issuesData ?? []).map(mapIssueRow)
+          const mappedNotifications = (notificationsData ?? []).map(mapNotificationRow)
           const mappedOffices = (officesData ?? []).map(mapOfficeRow)
 
           setSubAdmins(mappedSubAdmins)
@@ -560,6 +679,8 @@ function App() {
           setShoppers(mappedShoppers)
           setVisits(mappedVisits)
           setIssues(mappedIssues)
+          setNotifications(mappedNotifications)
+          setNotificationsEnabled(!notificationsError)
           setOffices(mappedOffices)
           setEvaluationCriteria(criteriaData ?? [])
           setPointsRules(mapPointsRules(pointsData ?? []))
@@ -710,12 +831,42 @@ function App() {
           })
         },
       )
-      .subscribe()
+
+    if (notificationsEnabled) {
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setNotifications((previous) =>
+              previous.filter((notification) => notification.id !== payload.old.id),
+            )
+            return
+          }
+
+          const mappedNotification = mapNotificationRow(payload.new)
+
+          setNotifications((previous) => {
+            const exists = previous.some((notification) => notification.id === mappedNotification.id)
+
+            if (!exists) {
+              return [mappedNotification, ...previous]
+            }
+
+            return previous.map((notification) =>
+              notification.id === mappedNotification.id ? mappedNotification : notification,
+            )
+          })
+        },
+      )
+    }
+
+    channel.subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [notificationsEnabled])
 
   const [authUser, setAuthUser] = useState(() => {
     try {
@@ -851,8 +1002,100 @@ function App() {
     return issuesWithVisitMeta
   }, [issuesWithVisitMeta])
 
+  const scopedNotifications = useMemo(() => {
+    if (!activeUser) return []
+
+    return notifications
+      .filter((notification) => notification.recipientRole === activeUser.role)
+      .filter(
+        (notification) =>
+          !notification.recipientUserId || notification.recipientUserId === activeUser.id,
+      )
+      .sort((first, second) => {
+        const firstDate = new Date(first.createdAt).getTime()
+        const secondDate = new Date(second.createdAt).getTime()
+        return secondDate - firstDate
+      })
+  }, [activeUser, notifications])
+
+  const unreadNotificationsCount = useMemo(() => {
+    return scopedNotifications.filter((notification) => !notification.isRead).length
+  }, [scopedNotifications])
+
   const dataLoadingValue = dataLoading
   const dataErrorValue = dataError
+
+  const markNotificationAsRead = async (notificationId) => {
+    const target = scopedNotifications.find((notification) => notification.id === notificationId)
+    if (!target || target.isRead) return true
+
+    const readAt = new Date().toISOString()
+
+    setNotifications((previous) =>
+      previous.map((notification) => {
+        if (notification.id !== notificationId) return notification
+
+        return {
+          ...notification,
+          isRead: true,
+          readAt,
+        }
+      }),
+    )
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({
+        is_read: true,
+        read_at: readAt,
+      })
+      .eq('id', notificationId)
+
+    if (error) {
+      console.error('Failed to mark notification as read:', error)
+      return false
+    }
+
+    return true
+  }
+
+  const markAllNotificationsAsRead = async () => {
+    const targetIds = scopedNotifications
+      .filter((notification) => !notification.isRead)
+      .map((notification) => notification.id)
+
+    if (targetIds.length === 0) return true
+
+    const readAt = new Date().toISOString()
+
+    const idsSet = new Set(targetIds)
+    setNotifications((previous) =>
+      previous.map((notification) => {
+        if (!idsSet.has(notification.id)) return notification
+
+        return {
+          ...notification,
+          isRead: true,
+          readAt,
+        }
+      }),
+    )
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({
+        is_read: true,
+        read_at: readAt,
+      })
+      .in('id', targetIds)
+
+    if (error) {
+      console.error('Failed to mark all notifications as read:', error)
+      return false
+    }
+
+    return true
+  }
 
   const canManageShopper = (shopperId) => {
     if (!activeUser) return false
@@ -879,6 +1122,7 @@ function App() {
     const superadminRecipients = superAdmins
       .filter((admin) => admin.status === 'نشط')
       .map((admin) => ({
+        id: admin.id,
         role: 'superadmin',
         name: admin.name,
         email: notificationEmailForUser(admin),
@@ -890,6 +1134,7 @@ function App() {
 
     if (rootSuperAdminEmail) {
       superadminRecipients.push({
+        id: SUPER_ADMIN_ACCOUNT.id,
         role: 'superadmin',
         name: SUPER_ADMIN_ACCOUNT.name,
         email: rootSuperAdminEmail,
@@ -899,6 +1144,7 @@ function App() {
     const adminRecipients = subAdmins
       .filter((admin) => admin.status === 'نشط')
       .map((admin) => ({
+        id: admin.id,
         role: 'admin',
         name: admin.name,
         email: notificationEmailForUser(admin),
@@ -907,15 +1153,16 @@ function App() {
     const opsRecipients = opsAdmins
       .filter((admin) => admin.status === 'نشط')
       .map((admin) => ({
+        id: admin.id,
         role: 'ops',
         name: admin.name,
         email: notificationEmailForUser(admin),
       }))
 
     return {
-      superadmins: dedupeRecipientsByEmail(superadminRecipients),
-      admins: dedupeRecipientsByEmail(adminRecipients),
-      ops: dedupeRecipientsByEmail(opsRecipients),
+      superadmins: dedupeNotificationRecipients(superadminRecipients),
+      admins: dedupeNotificationRecipients(adminRecipients),
+      ops: dedupeNotificationRecipients(opsRecipients),
     }
   }, [opsAdmins, subAdmins, superAdmins])
 
@@ -942,10 +1189,61 @@ function App() {
     }
   }
 
+  const createInAppVisitNotifications = async ({
+    eventType,
+    visit,
+    previousVisit,
+    actor,
+    recipients,
+  }) => {
+    if (!notificationsEnabled || !eventType || !visit?.id) return 0
+
+    const finalRecipients = dedupeNotificationRecipients(recipients)
+    if (finalRecipients.length === 0) return 0
+
+    const rows = finalRecipients.map((recipient) => {
+      const content = getInAppNotificationContent(eventType, visit, recipient.role)
+
+      return {
+        recipient_role: recipient.role,
+        recipient_user_id: String(recipient.id ?? '').trim() || null,
+        recipient_email: normalizeEmail(recipient.email),
+        title: content.title,
+        description: content.description,
+        event_type: eventType,
+        visit_id: visit.id,
+        payload: {
+          visit: serializeVisitForNotification(visit),
+          previousVisit: serializeVisitForNotification(previousVisit),
+          actor,
+          recipient: {
+            id: String(recipient.id ?? '').trim() || null,
+            role: recipient.role,
+            name: recipient.name ?? '',
+          },
+        },
+      }
+    })
+
+    const { error } = await supabase.from('notifications').insert(rows)
+
+    if (error) {
+      console.error('Failed to create in-app notifications:', error)
+      return 0
+    }
+
+    return rows.length
+  }
+
   const notifyVisitEvent = async ({ eventType, visit, previousVisit = null, recipients = [] }) => {
-    const finalRecipients = dedupeRecipientsByEmail(recipients)
-    if (!eventType || !visit || finalRecipients.length === 0) {
-      return { sent: 0, failed: 0, failures: [] }
+    if (!eventType || !visit) {
+      return { inAppCreated: 0, sent: 0, failed: 0, failures: [] }
+    }
+
+    const finalRecipients = dedupeNotificationRecipients(recipients)
+
+    if (finalRecipients.length === 0) {
+      return { inAppCreated: 0, sent: 0, failed: 0, failures: [] }
     }
 
     const actor = activeUser
@@ -963,8 +1261,20 @@ function App() {
       visit: serializeVisitForNotification(visit),
       previousVisit: serializeVisitForNotification(previousVisit),
       actor,
-      recipients: finalRecipients,
+      recipients: dedupeRecipientsByEmail(finalRecipients),
       appBaseUrl,
+    }
+
+    const inAppCreated = await createInAppVisitNotifications({
+      eventType,
+      visit,
+      previousVisit,
+      actor,
+      recipients: finalRecipients,
+    })
+
+    if (payload.recipients.length === 0) {
+      return { inAppCreated, sent: 0, failed: 0, failures: [] }
     }
 
     const authHeaders = {}
@@ -989,7 +1299,7 @@ function App() {
         console.error('Visit notification returned recipient failures:', failures)
       }
 
-      return { sent, failed, failures }
+      return { inAppCreated, sent, failed, failures }
     }
 
     console.error('Failed to send visit notification through SDK invoke:', error)
@@ -997,7 +1307,8 @@ function App() {
     if (!SUPABASE_FUNCTIONS_ENDPOINT || !SUPABASE_FUNCTIONS_PUBLIC_KEY) {
       return {
         sent: 0,
-        failed: finalRecipients.length,
+        inAppCreated,
+        failed: payload.recipients.length,
         failures: [{ error: 'Function fallback endpoint or public key is missing' }],
       }
     }
@@ -1030,12 +1341,13 @@ function App() {
         console.error('Visit notification fallback returned recipient failures:', failures)
       }
 
-      return { sent, failed, failures }
+      return { inAppCreated, sent, failed, failures }
     } catch (fallbackError) {
       console.error('Failed to send visit notification through fallback request:', fallbackError)
       return {
         sent: 0,
-        failed: finalRecipients.length,
+        inAppCreated,
+        failed: payload.recipients.length,
         failures: [
           {
             error:
@@ -1683,7 +1995,7 @@ function App() {
 
     setVisits((previous) => [nextVisit, ...previous])
 
-    const adminRoleRecipients = dedupeRecipientsByEmail([
+    const adminRoleRecipients = dedupeNotificationRecipients([
       ...notificationRecipientsByRole.superadmins,
       ...notificationRecipientsByRole.admins,
       ...notificationRecipientsByRole.ops,
@@ -1703,22 +2015,21 @@ function App() {
       const assignedShopper = shoppersById.get(nextVisit.assignedShopperId)
       const shopperEmail = notificationEmailForUser(assignedShopper)
 
-      if (shopperEmail) {
-        const assignedNotification = await notifyVisitEvent({
-          eventType: 'visit_assigned',
-          visit: nextVisit,
-          recipients: [
-            {
-              role: 'shopper',
-              name: assignedShopper?.name ?? '',
-              email: shopperEmail,
-            },
-          ],
-        })
+      const assignedNotification = await notifyVisitEvent({
+        eventType: 'visit_assigned',
+        visit: nextVisit,
+        recipients: [
+          {
+            id: assignedShopper?.id,
+            role: 'shopper',
+            name: assignedShopper?.name ?? '',
+            email: shopperEmail,
+          },
+        ],
+      })
 
-        if (assignedNotification.failed > 0 && assignedNotification.sent === 0) {
-          console.error('Failed to deliver assigned-shopper notification:', assignedNotification.failures)
-        }
+      if (assignedNotification.failed > 0 && assignedNotification.sent === 0) {
+        console.error('Failed to deliver assigned-shopper notification:', assignedNotification.failures)
       }
     }
 
@@ -1777,7 +2088,7 @@ function App() {
       previous.map((visit) => (visit.id === visitId ? updatedVisit : visit)),
     )
 
-    const adminRoleRecipients = dedupeRecipientsByEmail([
+    const adminRoleRecipients = dedupeNotificationRecipients([
       ...notificationRecipientsByRole.superadmins,
       ...notificationRecipientsByRole.admins,
       ...notificationRecipientsByRole.ops,
@@ -1803,20 +2114,19 @@ function App() {
       const assignedShopper = shoppersById.get(updatedVisit.assignedShopperId)
       const shopperEmail = notificationEmailForUser(assignedShopper)
 
-      if (shopperEmail) {
-        void notifyVisitEvent({
-          eventType: 'visit_assigned',
-          visit: updatedVisit,
-          previousVisit: targetVisit,
-          recipients: [
-            {
-              role: 'shopper',
-              name: assignedShopper?.name ?? '',
-              email: shopperEmail,
-            },
-          ],
-        })
-      }
+      void notifyVisitEvent({
+        eventType: 'visit_assigned',
+        visit: updatedVisit,
+        previousVisit: targetVisit,
+        recipients: [
+          {
+            id: assignedShopper?.id,
+            role: 'shopper',
+            name: assignedShopper?.name ?? '',
+            email: shopperEmail,
+          },
+        ],
+      })
     }
 
     const statusBecameCompleted =
@@ -2103,7 +2413,7 @@ function App() {
     })
 
     const completedVisit = mapVisitRow(updatedVisitRow)
-    const adminRoleRecipients = dedupeRecipientsByEmail([
+    const adminRoleRecipients = dedupeNotificationRecipients([
       ...notificationRecipientsByRole.superadmins,
       ...notificationRecipientsByRole.admins,
       ...notificationRecipientsByRole.ops,
@@ -2127,6 +2437,9 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
+    notifications: scopedNotifications,
+    notificationsEnabled,
+    unreadNotificationsCount,
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
@@ -2140,6 +2453,8 @@ function App() {
     deleteVisit,
     completeVisit,
     awardShopperPoints,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     onLogout: handleLogout,
   }
 
@@ -2151,12 +2466,17 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
+    notifications: scopedNotifications,
+    notificationsEnabled,
+    unreadNotificationsCount,
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
     addVisit,
     updateVisit,
     deleteVisit,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     onLogout: handleLogout,
   }
 
@@ -2171,6 +2491,9 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
+    notifications: scopedNotifications,
+    notificationsEnabled,
+    unreadNotificationsCount,
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
@@ -2195,6 +2518,8 @@ function App() {
     deleteVisit,
     completeVisit,
     awardShopperPoints,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     onLogout: handleLogout,
   }
 
@@ -2206,9 +2531,14 @@ function App() {
     offices,
     evaluationCriteria,
     pointsRules,
+    notifications: scopedNotifications,
+    notificationsEnabled,
+    unreadNotificationsCount,
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     completeVisit,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     onLogout: handleLogout,
   }
 
@@ -2253,6 +2583,7 @@ function App() {
           <Route path="managers" element={<ManageAdmins />} />
           <Route path="shoppers" element={<Shoppers />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
           {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
         </Route>
@@ -2268,6 +2599,7 @@ function App() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
           {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
         </Route>
@@ -2283,6 +2615,7 @@ function App() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
         </Route>
 
@@ -2300,6 +2633,7 @@ function App() {
           <Route path="visits/:visitId" element={<VisitDetail />} />
           <Route path="completed" element={<CompletedVisits />} />
           <Route path="completed/:visitId" element={<VisitDetail fromCompleted />} />
+          <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<ShopperReports />} />
         </Route>
 

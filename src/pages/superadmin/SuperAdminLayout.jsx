@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  BellRing,
   LayoutDashboard,
   ScanSearch,
   ShieldCheck,
@@ -17,6 +18,7 @@ const superAdminTabs = [
   { label: 'إدارة المديرين', to: '/superadmin/managers', icon: ShieldCheck },
   { label: 'المتسوقون', to: '/superadmin/shoppers', icon: Users },
   { label: 'الزيارات', to: '/superadmin/visits', icon: ScanSearch },
+  { label: 'الإشعارات', to: '/superadmin/notifications', icon: BellRing },
   { label: 'التقارير', to: '/superadmin/reports', icon: BarChart3 },
 ]
 
@@ -28,6 +30,7 @@ function getTitle(pathname) {
   if (pathname.includes('/superadmin/managers')) return 'إدارة المديرين'
   if (pathname.includes('/superadmin/shoppers')) return 'إدارة المتسوقين'
   if (pathname.includes('/superadmin/visits')) return 'إدارة الزيارات'
+  if (pathname.includes('/superadmin/notifications')) return 'مركز الإشعارات'
   if (pathname.includes('/superadmin/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/superadmin/points')) return 'إدارة النقاط'
   return 'لوحة تحكم سوبر أدمن'
@@ -35,6 +38,16 @@ function getTitle(pathname) {
 
 export default function SuperAdminLayout(props) {
   const location = useLocation()
+  const unreadNotificationsCount = Number(props.unreadNotificationsCount ?? 0)
+
+  const tabs = superAdminTabs.map((tab) => {
+    if (tab.to !== '/superadmin/notifications') return tab
+
+    return {
+      ...tab,
+      badge: unreadNotificationsCount,
+    }
+  })
 
   const contextValue = {
     ...props,
@@ -56,7 +69,7 @@ export default function SuperAdminLayout(props) {
           <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <h3 className="mb-2 px-2 text-sm font-black text-slate-700">أقسام الإدارة العليا</h3>
             <nav className="grid gap-1">
-              {superAdminTabs.map((tab) => {
+              {tabs.map((tab) => {
                 const Icon = tab.icon
 
                 return (
@@ -73,6 +86,11 @@ export default function SuperAdminLayout(props) {
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}
+                    {Number(tab.badge ?? 0) > 0 && (
+                      <span className="ms-auto inline-flex min-w-6 justify-center rounded-full bg-rose-100 px-1.5 py-0.5 text-xs font-black text-rose-700">
+                        {tab.badge}
+                      </span>
+                    )}
                   </NavLink>
                 )
               })}

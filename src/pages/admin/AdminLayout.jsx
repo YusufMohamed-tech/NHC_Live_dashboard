@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  BellRing,
   LayoutDashboard,
   ScanSearch,
 } from 'lucide-react'
@@ -10,12 +11,18 @@ import Navbar from '../../components/Navbar'
 
 const SHOW_POINTS_SECTION = import.meta.env.DEV
 
-function getTabs(role) {
+function getTabs(role, unreadNotificationsCount = 0) {
   const basePath = role === 'ops' ? '/ops' : '/admin'
 
   const tabs = [
     { label: 'نظرة عامة', to: `${basePath}/overview`, icon: LayoutDashboard },
     { label: 'الزيارات', to: `${basePath}/visits`, icon: ScanSearch },
+    {
+      label: 'الإشعارات',
+      to: `${basePath}/notifications`,
+      icon: BellRing,
+      badge: unreadNotificationsCount,
+    },
     { label: 'التقارير', to: `${basePath}/reports`, icon: BarChart3 },
   ]
 
@@ -28,6 +35,7 @@ function getTabs(role) {
 
 function getTitle(pathname, role) {
   if (pathname.includes('/visits')) return 'إدارة الزيارات'
+  if (pathname.includes('/notifications')) return 'مركز الإشعارات'
   if (pathname.includes('/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/points')) return 'إدارة النقاط'
   if (role === 'ops') return 'لوحة تحكم Ops'
@@ -37,7 +45,8 @@ function getTitle(pathname, role) {
 export default function AdminLayout(props) {
   const location = useLocation()
   const role = props.user?.role === 'ops' ? 'ops' : 'admin'
-  const tabs = getTabs(role)
+  const unreadNotificationsCount = Number(props.unreadNotificationsCount ?? 0)
+  const tabs = getTabs(role, unreadNotificationsCount)
   const sideTitle = role === 'ops' ? 'أقسام Ops' : 'أقسام المدير'
 
   const contextValue = {
@@ -77,6 +86,11 @@ export default function AdminLayout(props) {
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}
+                    {Number(tab.badge ?? 0) > 0 && (
+                      <span className="ms-auto inline-flex min-w-6 justify-center rounded-full bg-rose-100 px-1.5 py-0.5 text-xs font-black text-rose-700">
+                        {tab.badge}
+                      </span>
+                    )}
                   </NavLink>
                 )
               })}
