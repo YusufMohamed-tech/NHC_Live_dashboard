@@ -33,7 +33,6 @@ function formatVisitCard(visit, shoppersById) {
   const shopperName = shoppersById.get(visit.assignedShopperId)?.name
 
   return [
-    visit.membershipId || visit.id,
     visit.officeName,
     visit.city,
     visit.date,
@@ -49,13 +48,13 @@ function buildInitialMessage() {
   return {
     id: 'assistant-initial',
     role: 'assistant',
-    text: 'أنا مساعد الزيارات. اسألني عن حالة الزيارات، العدد، المدينة، المتسوق، أو رقم العضوية.',
+    text: 'أنا مساعد الزيارات. اسألني عن حالة الزيارات، العدد، المدينة، أو المتسوق.',
     matches: [],
     suggestions: [
       'كم عدد الزيارات المعلقة اليوم؟',
       'اعرض آخر 5 زيارات',
       'زيارات مدينة الرياض',
-      'ابحث برقم العضوية NHC-12345',
+      'من هي الزيارات الخاصة بمتسوق معين؟',
     ],
   }
 }

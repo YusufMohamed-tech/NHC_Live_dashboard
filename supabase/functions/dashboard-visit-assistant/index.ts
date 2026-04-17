@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 
 type VisitSummary = {
   id: string
-  membershipId?: string
   officeName?: string
   city?: string
   date?: string
@@ -37,7 +36,6 @@ function sanitizeText(value: unknown, maxLength = 1000) {
 function compactVisits(visits: VisitSummary[]) {
   return visits.slice(0, 120).map((visit) => ({
     id: sanitizeText(visit.id, 64),
-    membershipId: sanitizeText(visit.membershipId, 64),
     officeName: sanitizeText(visit.officeName, 120),
     city: sanitizeText(visit.city, 120),
     date: sanitizeText(visit.date, 24),

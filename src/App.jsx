@@ -92,6 +92,13 @@ function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase()
 }
 
+function stripMembershipFromText(value) {
+  return String(value ?? '')
+    .replace(/\s*\|?\s*رقم العضوية:[^\n\r|]*/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 function looksLikeJwt(value) {
   return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(String(value ?? '').trim())
 }
@@ -402,7 +409,7 @@ function mapNotificationRow(row) {
     recipientUserId: row.recipient_user_id ?? null,
     recipientEmail: normalizeEmail(row.recipient_email),
     title: row.title ?? '',
-    description: row.description ?? '',
+    description: stripMembershipFromText(row.description ?? ''),
     eventType: row.event_type ?? '',
     visitId: row.visit_id ?? null,
     payload: row.payload && typeof row.payload === 'object' ? row.payload : {},
@@ -1210,7 +1217,6 @@ function App() {
       time: visit.time,
       status: visit.status,
       scenario: visit.scenario,
-      membershipId: visit.membershipId,
       assignedShopperId: visit.assignedShopperId,
       assignedShopperName: assignedShopper?.name ?? null,
     }

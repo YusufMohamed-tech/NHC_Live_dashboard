@@ -12,8 +12,6 @@ const VISIT_DOMAIN_KEYWORDS = [
   'visits',
   'dashboard',
   'داشبورد',
-  'عضوية',
-  'membership',
   'مدينة',
   'city',
   'فرع',
@@ -59,7 +57,7 @@ const STATUS_KEYWORDS = {
 const DEFAULT_SUGGESTIONS = [
   'كم عدد الزيارات المعلقة اليوم؟',
   'اعرض آخر 5 زيارات',
-  'ابحث عن زيارة برقم العضوية NHC-12345',
+  'اعرض الزيارات المكتملة هذا الأسبوع',
   'زيارات مدينة الرياض',
 ]
 
@@ -165,14 +163,6 @@ function extractVisitId(question) {
   return uuid ? uuid[0] : null
 }
 
-function extractMembershipId(question) {
-  const normalizedQuestion = String(question ?? '').toUpperCase()
-  const match = normalizedQuestion.match(/\bNHC[-\s]?\d{4,10}\b/)
-  if (!match) return null
-
-  return match[0].replace(/\s+/g, '-').replace('NHC', 'NHC')
-}
-
 function extractLimit(question, fallback = 5, maxLimit = 20) {
   const normalizedQuestion = normalizeText(question)
   const match = normalizedQuestion.match(/(?:اخر|آخر|last|latest)\s+(\d{1,2})/)
@@ -198,7 +188,7 @@ function sortNewest(visits) {
 
 function formatVisitLine(visit, shopperName = '') {
   const pieces = [
-    `#${visit.membershipId || visit.id}`,
+    visit.id ? `#${visit.id}` : null,
     visit.officeName,
     visit.city,
     visit.date,
@@ -277,7 +267,6 @@ export function summarizeVisitsForModel(visits, shoppersById, limit = 80) {
     .slice(0, limit)
     .map((visit) => ({
       id: visit.id,
-      membershipId: visit.membershipId,
       officeName: visit.officeName,
       city: visit.city,
       date: visit.date,
@@ -322,32 +311,6 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     const shopperName = shoppersById.get(found.assignedShopperId)?.name ?? ''
     return {
       intent: 'visit_by_id',
-      answer: `تم العثور على الزيارة: ${formatVisitLine(found, shopperName)}`,
-      matchedVisits: [found],
-      suggestions: DEFAULT_SUGGESTIONS,
-      needsLlm: false,
-    }
-  }
-
-  const membershipId = extractMembershipId(safeQuestion)
-  if (membershipId) {
-    const found = allVisits.find(
-      (visit) => normalizeText(visit.membershipId) === normalizeText(membershipId),
-    )
-
-    if (!found) {
-      return {
-        intent: 'visit_by_membership',
-        answer: `لم أجد زيارة برقم العضوية ${membershipId}.`,
-        matchedVisits: [],
-        suggestions: DEFAULT_SUGGESTIONS,
-        needsLlm: false,
-      }
-    }
-
-    const shopperName = shoppersById.get(found.assignedShopperId)?.name ?? ''
-    return {
-      intent: 'visit_by_membership',
       answer: `تم العثور على الزيارة: ${formatVisitLine(found, shopperName)}`,
       matchedVisits: [found],
       suggestions: DEFAULT_SUGGESTIONS,
@@ -463,7 +426,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
 
   return {
     intent: 'summary_fallback',
-    answer: `${buildSummary(allVisits)}. لو محتاج تفاصيل أكثر، اذكر الحالة أو المدينة أو رقم العضوية.`,
+    answer: `${buildSummary(allVisits)}. لو محتاج تفاصيل أكثر، اذكر الحالة أو المدينة أو اسم المتسوق.`,
     matchedVisits: latest,
     suggestions: DEFAULT_SUGGESTIONS,
     needsLlm: true,

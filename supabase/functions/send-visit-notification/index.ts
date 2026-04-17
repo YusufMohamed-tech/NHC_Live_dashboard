@@ -122,7 +122,6 @@ function collectVisitDetails(visit: VisitPayload, options?: { includeAssignedSho
   if (visit.date) details.push(`التاريخ: ${visit.date}`)
   if (visit.time) details.push(`الوقت: ${visit.time}`)
   if (visit.status) details.push(`الحالة: ${visit.status}`)
-  if (visit.membershipId) details.push(`رقم العضوية: ${visit.membershipId}`)
   if (visit.scenario) details.push(`السيناريو: ${visit.scenario}`)
 
   if (options?.includeAssignedShopper && visit.assignedShopperName) {
