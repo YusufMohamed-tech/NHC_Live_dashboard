@@ -64,11 +64,6 @@ export default function Overview() {
 
         <div className="mt-4 space-y-3">
           {subAdmins.map((subAdmin) => {
-            const assignedIds = subAdmin.assignedShopperIds ?? []
-            const assignedVisitsCount = visits.filter((visit) =>
-              assignedIds.includes(visit.assignedShopperId),
-            ).length
-
             return (
               <article
                 key={subAdmin.id}
@@ -96,12 +91,14 @@ export default function Overview() {
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="text-xs text-slate-500">عدد المتسوقين المعيّنين</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{assignedIds.length}</p>
+                    <p className="text-xs text-slate-500">المدينة</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">{subAdmin.city || '-'}</p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="text-xs text-slate-500">زيارات متسوقيه</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{assignedVisitsCount}</p>
+                    <p className="text-xs text-slate-500">البريد الشخصي</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">
+                      {subAdmin.personalEmail || '-'}
+                    </p>
                   </div>
                 </div>
               </article>

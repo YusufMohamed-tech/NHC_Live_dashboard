@@ -42,7 +42,7 @@ const LeaderboardRow = memo(function LeaderboardRow({ shopper, index, showPoints
 })
 
 export default function Overview() {
-  const { shoppers, visits, issues, user, adminHasAssignments, dataLoading, dataError } =
+  const { shoppers, visits, issues, dataLoading, dataError } =
     useOutletContext()
 
   const stats = useDashboardStats({ shoppers, visits, issues })
@@ -53,10 +53,6 @@ export default function Overview() {
 
   if (dataError) {
     return <ErrorState message={dataError} />
-  }
-
-  if (user?.role === 'admin' && !adminHasAssignments) {
-    return <EmptyState icon={Users2} message="لم يتم تعيين متسوقين بعد" />
   }
 
   if (shoppers.length === 0 && visits.length === 0) {

@@ -351,7 +351,6 @@ function mapAdminRow(row) {
     city: row.city ?? '',
     status: toArabicUserStatus(row.status),
     role: normalizeAdminRole(row.role),
-    assignedShopperIds: normalizeAssignedIds(row.assigned_shopper_ids),
   }
 }
 
@@ -953,7 +952,6 @@ function App() {
         ...authUser,
         ...subAdmin,
         role: 'admin',
-        assignedShopperIds: subAdmin.assignedShopperIds ?? [],
       }
     }
 
@@ -1135,7 +1133,7 @@ function App() {
     if (!activeUser) return false
     if (activeUser.role === 'superadmin') return true
     if (activeUser.role === 'admin') {
-      return (activeUser.assignedShopperIds ?? []).includes(shopperId)
+      return true
     }
     return false
   }
@@ -1479,7 +1477,6 @@ function App() {
         email: subAdmin.email,
         personalEmail: subAdmin.personalEmail ?? '',
         role: 'admin',
-        assignedShopperIds: subAdmin.assignedShopperIds ?? [],
       }
 
       if (commitSession) {
@@ -1736,11 +1733,6 @@ function App() {
   const addSubAdmin = async (payload) => {
     if (activeUser?.role !== 'superadmin') return null
 
-    const assignedSet = new Set(payload.assignedShopperIds ?? [])
-    const validAssigned = shoppers
-      .filter((shopper) => assignedSet.has(shopper.id))
-      .map((shopper) => shopper.id)
-
     const insertPayload = {
       name: payload.name.trim(),
       email: normalizeEmail(payload.email),
@@ -1749,7 +1741,7 @@ function App() {
       city: payload.city.trim(),
       status: toDbUserStatus(payload.status),
       role: 'admin',
-      assigned_shopper_ids: validAssigned,
+      assigned_shopper_ids: [],
     }
 
     const { data: insertedAdmin, error } = await insertAdminRecord(insertPayload)
@@ -1771,11 +1763,6 @@ function App() {
     const currentAdmin = subAdmins.find((admin) => admin.id === subAdminId)
     if (!currentAdmin) return null
 
-    const assignedSet = new Set(updates.assignedShopperIds ?? currentAdmin.assignedShopperIds ?? [])
-    const validAssigned = shoppers
-      .filter((shopper) => assignedSet.has(shopper.id))
-      .map((shopper) => shopper.id)
-
     const dbUpdates = {
       name: updates.name ? updates.name.trim() : currentAdmin.name,
       email: updates.email ? normalizeEmail(updates.email) : currentAdmin.email,
@@ -1786,7 +1773,6 @@ function App() {
       password: updates.password ?? currentAdmin.password,
       city: updates.city ? updates.city.trim() : currentAdmin.city,
       status: updates.status ? toDbUserStatus(updates.status) : toDbUserStatus(currentAdmin.status),
-      assigned_shopper_ids: validAssigned,
     }
 
     const { data: updatedAdminRow, error } = await updateAdminRecord(subAdminId, dbUpdates)
@@ -1831,12 +1817,6 @@ function App() {
     }
 
     return true
-  }
-
-  const assignSubAdminShoppers = async (subAdminId, assignedIds) => {
-    return updateSubAdmin(subAdminId, {
-      assignedShopperIds: assignedIds,
-    })
   }
 
   const addShopper = async (payload) => {
@@ -1984,13 +1964,6 @@ function App() {
     }
 
     setShoppers((previous) => previous.filter((item) => item.id !== shopperId))
-
-    setSubAdmins((previous) =>
-      previous.map((item) => ({
-        ...item,
-        assignedShopperIds: (item.assignedShopperIds ?? []).filter((id) => id !== shopperId),
-      })),
-    )
 
     setVisits((previous) => {
       const remainingVisits = previous.filter((visit) => visit.assignedShopperId !== shopperId)
@@ -2519,7 +2492,6 @@ function App() {
     dataLoading: dataLoadingValue,
     dataError: dataErrorValue,
     isLive: true,
-    adminHasAssignments: true,
     addShopper,
     updateShopper,
     updateShopperStatus,
@@ -2584,7 +2556,6 @@ function App() {
     addSubAdmin,
     updateSubAdmin,
     deleteSubAdmin,
-    assignSubAdminShoppers,
     addShopper,
     updateShopper,
     updateShopperStatus,
