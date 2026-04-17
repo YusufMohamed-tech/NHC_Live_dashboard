@@ -5,6 +5,50 @@ const YESTERDAY_KEYWORDS = ['yesterday', 'امس', 'أمس']
 const THIS_WEEK_KEYWORDS = ['this week', 'الاسبوع', 'الأسبوع']
 const THIS_MONTH_KEYWORDS = ['this month', 'هذا الشهر']
 
+const VISIT_DOMAIN_KEYWORDS = [
+  'زيارة',
+  'زيارات',
+  'visit',
+  'visits',
+  'dashboard',
+  'داشبورد',
+  'عضوية',
+  'membership',
+  'مدينة',
+  'city',
+  'فرع',
+  'office',
+  'متسوق',
+  'shopper',
+  'حالة',
+  'status',
+  'معلقة',
+  'قادمة',
+  'مكتملة',
+  'مسح',
+  'count',
+  'total',
+  'عدد',
+  'كم',
+  'latest',
+  'last',
+  'recent',
+  'اخر',
+  'آخر',
+  'today',
+  'yesterday',
+  'this week',
+  'this month',
+  'اليوم',
+  'النهارده',
+  'نهارده',
+  'امس',
+  'أمس',
+  'الاسبوع',
+  'الأسبوع',
+  'الشهر',
+]
+
 const STATUS_KEYWORDS = {
   معلقة: ['معلقة', 'معلقه', 'pending', 'new visit', 'new'],
   قادمة: ['قادمة', 'قادمه', 'upcoming', 'revisit', 'follow-up'],
@@ -224,6 +268,10 @@ function buildSummary(visits) {
   return `ملخص الزيارات: الإجمالي ${total} | المعلقة ${pending} | القادمة ${upcoming} | المكتملة ${completed} | جاري المسح ${deleting}`
 }
 
+function isVisitDomainQuestion(question) {
+  return hasAnyKeyword(question, VISIT_DOMAIN_KEYWORDS)
+}
+
 export function summarizeVisitsForModel(visits, shoppersById, limit = 80) {
   return sortNewest(visits)
     .slice(0, limit)
@@ -396,6 +444,16 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
       intent: 'filtered_visits',
       answer: `تم العثور على ${filtered.length} زيارة مطابقة${summary}.`,
       matchedVisits: sorted.slice(0, 10),
+      suggestions: DEFAULT_SUGGESTIONS,
+      needsLlm: false,
+    }
+  }
+
+  if (!isVisitDomainQuestion(normalizedQuestion)) {
+    return {
+      intent: 'out_of_scope',
+      answer: 'أنا شات مخصص للداشبورد بس، تحب تسأل عن أي حاجة؟',
+      matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
     }
