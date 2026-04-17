@@ -80,7 +80,7 @@ export default function Login({ onLogin }) {
             className="mx-auto h-20 w-20 object-contain"
           />
           <h1 className="mt-4 font-display text-5xl font-black text-slate-900 max-md:text-4xl">
-            نظام المتسوق السري
+            نظام المتحري الخفي
           </h1>
           <p className="mt-2 text-lg text-slate-500">اختر دورك للدخول إلى النظام</p>
         </section>
@@ -98,7 +98,7 @@ export default function Login({ onLogin }) {
             <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-500 text-white shadow-sm">
               <ClipboardCheck className="h-10 w-10" />
             </span>
-            <h2 className="mt-5 text-4xl font-black text-slate-900 max-md:text-3xl">متسوق سري</h2>
+            <h2 className="mt-5 text-4xl font-black text-slate-900 max-md:text-3xl">متحري خفي</h2>
             <p className="mt-2 text-base text-slate-500">تنفيذ الزيارات وإعداد التقييمات</p>
           </button>
 
@@ -124,7 +124,7 @@ export default function Login({ onLogin }) {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-display text-2xl font-black text-slate-900">تسجيل الدخول</h3>
               <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700">
-                {isShopperPortal ? 'متسوق سري' : 'مدير النظام'}
+                {isShopperPortal ? 'متحري خفي' : 'مدير النظام'}
               </span>
             </div>
 

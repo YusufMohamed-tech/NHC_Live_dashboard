@@ -696,7 +696,7 @@ export async function generateMysteryShopperPdf({
 
   setFont(doc, fontFamily, 28)
   setTextColor(doc, TEXT_DARK)
-  doc.text(rtlText(doc, 'تقرير برنامج المتسوق السري'), pageWidth - 40, 170, { align: 'right' })
+  doc.text(rtlText(doc, 'تقرير برنامج المتحري الخفي'), pageWidth - 40, 170, { align: 'right' })
 
   setFont(doc, fontFamily, 14)
   setTextColor(doc, TEXT_MUTED)
