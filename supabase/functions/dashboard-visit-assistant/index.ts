@@ -25,7 +25,9 @@ const CORS_HEADERS = {
 }
 
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') || ''
-const OPENROUTER_MODEL = Deno.env.get('OPENROUTER_MODEL') || 'google/gemma-3-4b-it'
+// Default model: prefer the larger Gemma model for best Arabic understanding and conversational behavior.
+// Do NOT hardcode your API key here — set OPENROUTER_API_KEY in your deployment environment/secrets.
+const OPENROUTER_MODEL = Deno.env.get('OPENROUTER_MODEL') || 'google/gemma-4-31b-it'
 const OPENROUTER_SITE_URL = Deno.env.get('OPENROUTER_SITE_URL') || ''
 const OPENROUTER_APP_NAME = Deno.env.get('OPENROUTER_APP_NAME') || 'NHC Mystery Shopper Dashboard'
 
@@ -51,17 +53,19 @@ function buildMessages(payload: RequestPayload) {
   const question = sanitizeText(payload.question, 600)
   const visits = compactVisits(payload.visits ?? [])
 
-  // Use a clear system message so the model knows behavior and when to ask a follow-up
+  // Use a clear system message so the model (Gemma) knows behavior and when to ask a follow-up.
+  // Gemma: be interactive, ask one short clarifying question when needed, produce main-points and short examples,
+  // and prefer returning visit identifiers in the form #<visitId> so the UI can link to them.
   const systemMessage = [
-    'تعليمات المساعد (تُعامل كمسمى System):',
-    '- أنت مساعد خاص بلوحة تحكم الزيارات فقط. ركّز على بيانات الزيارات المرسلة في JSON.',
-    '- اجب بلغة المستخدم وبنبرة ودودة وبسيطة؛ ابدأ بشرح قصير ثم قدّم تفاصيل أعمق عند الحاجة.',
-    '- أعطِ "main points" واضحة (3 نقاط رئيسية) عند طلب ملخص أداء متحريين، ثم مثالين سريعين كأمثلة تطبيقية.',
-    '- اقترح خطوات أو أسئلة متابعة مفيدة بشكل استباقي.',
-    '- اسأل سؤال متابعة واحد فقط إذا كانت المعلومات غير كافية أو لتضييق النطاق. اجعل السؤال قصيرًا ومباشرًا.',
-    '- لا تخترع أو تفترض بيانات غير موجودة في JSON. إذا البيانات غير كافية، اعترف بذلك واطرح سؤال متابعة واحد.',
-    '- لا تعرض كل التقارير الكاملة تلقائيًا — قدم ملخصًا ونماذج (حتى 3 زيارات) فقط، مع زر للاطّلاع على المزيد.',
-    '- اجعل الردود ودودة وطبيعية؛ تجنّب أسلوب المعاجم أو الكتب الدراسية.',
+    'تعليمات المساعد (System):',
+    '- اسمك Gemma؛ أنت مساعد تفاعلي للداشبورد.',
+    '- لديك وصول قراءة كامل فقط إلى بيانات الزيارات المرسلة في JSON؛ استخدمها فقط ولا تختلق بيانات.',
+    '- ابدأ بإجابة قصيرة وبسيطة (جملة أو جملتين)، ثم أعطِ 2-4 "main points" واضحة عند الحاجة، كل نقطة قصيرة.',
+    '- عند طلب ملخص المتحريين، اذكر: الاسم، سبب التفوق (عدد زيارات أو متوسط تقييم)، ونموذجين قصيرين من زياراته بصيغة: "#visitId | Office | City | date | status"',
+    '- اقترح خطوة متابعة أو سؤال واحد مباشر بنهاية الإجابة (مثال: "تحب أشوف تفاصيل زياراته؟").',
+    '- اطلب سؤال متابعة واحد فقط إذا كانت البيانات ناقصة أو لتضييق نطاق الاستعلام.',
+    '- لا تعرض جميع التقارير كاملة تلقائيًا — قدم أمثلة مختارة (حتى 3 زيارات) وروابط معرفية باستخدام #<id>.',
+    '- كن ودودًا وطبيعيًا، وتجنب أسلوب التوثيق الجاف.',
     `- صلاحية المستخدم الحالية: ${role}.`,
   ].join('\n')
 
