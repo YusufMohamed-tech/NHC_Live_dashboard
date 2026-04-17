@@ -58,10 +58,10 @@ const STATUS_KEYWORDS = {
 }
 
 const DEFAULT_SUGGESTIONS = [
-  'كم عدد الزيارات المعلقة اليوم؟',
-  'اعرض آخر 5 زيارات',
-  'اعرض الزيارات المكتملة هذا الأسبوع',
-  'زيارات مدينة الرياض',
+  'كام زيارة معلقة النهارده؟',
+  'هات آخر 5 زيارات',
+  'وريني الزيارات المكتملة الأسبوع ده',
+  'فيه زيارات في الرياض؟',
 ]
 
 function normalizeText(value) {
@@ -288,7 +288,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   if (!safeQuestion) {
     return {
       intent: 'empty',
-      answer: 'اكتب سؤالك عن الزيارات وسأجيبك مباشرة.',
+      answer: 'قولّي سؤالك عن الزيارات وأنا معاك.',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -301,24 +301,30 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   const visitId = extractVisitId(safeQuestion)
   if (visitId) {
     const found = allVisits.find((visit) => String(visit.id).toLowerCase() === visitId.toLowerCase())
+    let result;
     if (!found) {
-      return {
+      result = {
         intent: 'visit_by_id',
-        answer: `لم أجد زيارة بالمعرف ${visitId}.`,
+        answer: `ملقتش زيارة بالمعرف ${visitId}. جرّب تبعته تاني أو قولّي أجيبلك آخر الزيارات.`,
         matchedVisits: [],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
       }
+    } else {
+      const shopperName = shoppersById.get(found.assignedShopperId)?.name ?? ''
+      result = {
+        intent: 'visit_by_id',
+        answer: `تمام، لقيت الزيارة دي: ${formatVisitLine(found, shopperName)}`,
+        matchedVisits: [found],
+        suggestions: DEFAULT_SUGGESTIONS,
+        needsLlm: false,
+      }
     }
-
-    const shopperName = shoppersById.get(found.assignedShopperId)?.name ?? ''
-    return {
-      intent: 'visit_by_id',
-      answer: `تم العثور على الزيارة: ${formatVisitLine(found, shopperName)}`,
-      matchedVisits: [found],
-      suggestions: DEFAULT_SUGGESTIONS,
-      needsLlm: false,
+    // Always ensure suggestions are present
+    if (!result.suggestions || result.suggestions.length === 0) {
+      result.suggestions = DEFAULT_SUGGESTIONS
     }
+    return result;
   }
 
   const status = detectStatus(safeQuestion)
@@ -353,24 +359,28 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   if (wantsLatest) {
     const limit = extractLimit(safeQuestion, 5, 20)
     const latest = sortNewest(filtered).slice(0, limit)
-
+    let result;
     if (latest.length === 0) {
-      return {
+      result = {
         intent: 'latest_visits',
-        answer: 'لا توجد زيارات مطابقة للفلتر المطلوب في آخر النتائج.',
+        answer: 'مفيش زيارات مطابقة للفلتر ده في آخر النتائج.',
         matchedVisits: [],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
       }
+    } else {
+      result = {
+        intent: 'latest_visits',
+        answer: `تمام، دي أحدث ${latest.length} زيارة مطابقة لطلبك.`,
+        matchedVisits: latest,
+        suggestions: DEFAULT_SUGGESTIONS,
+        needsLlm: false,
+      }
     }
-
-    return {
-      intent: 'latest_visits',
-      answer: `هذه أحدث ${latest.length} زيارة مطابقة لطلبك.`,
-      matchedVisits: latest,
-      suggestions: DEFAULT_SUGGESTIONS,
-      needsLlm: false,
+    if (!result.suggestions || result.suggestions.length === 0) {
+      result.suggestions = DEFAULT_SUGGESTIONS
     }
+    return result;
   }
 
   if (wantsCount || status || dateFilter || entities.city || entities.office || entities.shopperId) {
@@ -385,40 +395,42 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
 
     const summary = details.length > 0 ? ` (${details.join(' | ')})` : ''
     const sorted = sortNewest(filtered)
-
+    let result;
     if (wantsCount) {
-      return {
+      result = {
         intent: 'count_filtered_visits',
-        answer: `عدد الزيارات المطابقة${summary}: ${filtered.length}`,
+        answer: `تمام، عدد الزيارات المطابقة${summary}: ${filtered.length}`,
+        matchedVisits: sorted.slice(0, 10),
+        suggestions: DEFAULT_SUGGESTIONS,
+        needsLlm: false,
+      }
+    } else if (filtered.length === 0) {
+      result = {
+        intent: 'filtered_visits',
+        answer: `للأسف مفيش زيارات مطابقة${summary}.`,
+        matchedVisits: [],
+        suggestions: DEFAULT_SUGGESTIONS,
+        needsLlm: false,
+      }
+    } else {
+      result = {
+        intent: 'filtered_visits',
+        answer: `حلو، لقيت ${filtered.length} زيارة مطابقة${summary}.`,
         matchedVisits: sorted.slice(0, 10),
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
       }
     }
-
-    if (filtered.length === 0) {
-      return {
-        intent: 'filtered_visits',
-        answer: `لا توجد زيارات مطابقة${summary}.`,
-        matchedVisits: [],
-        suggestions: DEFAULT_SUGGESTIONS,
-        needsLlm: false,
-      }
+    if (!result.suggestions || result.suggestions.length === 0) {
+      result.suggestions = DEFAULT_SUGGESTIONS
     }
-
-    return {
-      intent: 'filtered_visits',
-      answer: `تم العثور على ${filtered.length} زيارة مطابقة${summary}.`,
-      matchedVisits: sorted.slice(0, 10),
-      suggestions: DEFAULT_SUGGESTIONS,
-      needsLlm: false,
-    }
+    return result;
   }
 
   if (!isVisitDomainQuestion(normalizedQuestion)) {
     return {
       intent: 'out_of_scope',
-      answer: 'أنا شات مخصص للداشبورد بس، تحب تسأل عن أي حاجة؟',
+      answer: 'أنا هنا مخصوص لبيانات الداشبورد والزيارات. اسألني عن العدد، الحالة، المدينة أو متحري خفي معيّن.',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -426,10 +438,9 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   }
 
   const latest = sortNewest(allVisits).slice(0, 5)
-
   return {
     intent: 'summary_fallback',
-    answer: `${buildSummary(allVisits)}. لو محتاج تفاصيل أكثر، اذكر الحالة أو المدينة أو اسم المتحري الخفي.`,
+    answer: `دي لمحة سريعة: ${buildSummary(allVisits)}. ولو عايز تفاصيل أكتر، قولّي الحالة أو المدينة أو اسم المتحري الخفي.`,
     matchedVisits: latest,
     suggestions: DEFAULT_SUGGESTIONS,
     needsLlm: true,
