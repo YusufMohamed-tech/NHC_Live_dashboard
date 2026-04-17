@@ -24,7 +24,7 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
 
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)

@@ -128,7 +128,7 @@ function formatArabicDateLabel(dateKey) {
   const parsed = parseRecordDate(dateKey)
   if (!parsed) return dateKey
 
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -144,7 +144,7 @@ function formatArabicMonthLabel(monthKey) {
   const parsed = new Date(year, month - 1, 1)
   if (Number.isNaN(parsed.getTime())) return monthKey
 
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     month: 'long',
     year: 'numeric',
   }).format(parsed)

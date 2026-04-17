@@ -39,7 +39,7 @@ function getMonthLabel(monthKey) {
   const [yearValue, monthValue] = monthKey.split('-').map(Number)
   if (!yearValue || !monthValue) return monthKey
 
-  return new Intl.DateTimeFormat('ar-SA', { month: 'short' }).format(
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { month: 'short' }).format(
     new Date(yearValue, monthValue - 1, 1),
   )
 }
