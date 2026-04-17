@@ -173,7 +173,7 @@ export default function Login({ onLogin }) {
         <div className="mt-6 text-center">
           <span className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
             <ShieldCheck className="me-2 h-4 w-4" />
-            محمي باتفاقية عدم الإفصاح
+            All Rights Reserved - Chessboard 2026
           </span>
         </div>
       </div>
