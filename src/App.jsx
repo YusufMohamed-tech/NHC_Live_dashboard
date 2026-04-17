@@ -186,6 +186,12 @@ function getInAppNotificationContent(eventType, visit, recipientRole) {
   }
 }
 
+function isResendTestingRestrictionError(errorText) {
+  return String(errorText ?? '')
+    .toLowerCase()
+    .includes('you can only send testing emails to your own email address')
+}
+
 function isMissingTableError(error, tableName) {
   const table = String(tableName ?? '').trim()
   if (!table) return false
@@ -2052,8 +2058,18 @@ function App() {
       recipients: adminRoleRecipients,
     })
 
-    if (creationNotification.failed > 0 && creationNotification.sent === 0) {
-      window.alert('تم حفظ الزيارة لكن تعذر إرسال إشعار البريد الإلكتروني.')
+    if (creationNotification.failed > 0) {
+      const firstFailure = String(creationNotification.failures?.[0]?.error ?? '')
+
+      if (isResendTestingRestrictionError(firstFailure)) {
+        window.alert(
+          'تم حفظ الزيارة وإشعار الموقع، لكن البريد مرفوض من Resend في وضع الاختبار. يلزم توثيق Domain في Resend وتعيين RESEND_FROM_EMAIL من نفس الدومين.',
+        )
+      } else if (creationNotification.sent === 0) {
+        window.alert('تم حفظ الزيارة لكن تعذر إرسال إشعار البريد الإلكتروني.')
+      } else {
+        window.alert('تم حفظ الزيارة وإرسال جزء من البريد، لكن بعض المستلمين فشل لهم الإرسال.')
+      }
     }
 
     if (nextVisit.assignedShopperId) {
@@ -2074,6 +2090,14 @@ function App() {
       })
 
       if (assignedNotification.failed > 0 && assignedNotification.sent === 0) {
+        const firstFailure = String(assignedNotification.failures?.[0]?.error ?? '')
+
+        if (isResendTestingRestrictionError(firstFailure)) {
+          window.alert(
+            'تم حفظ الزيارة لكن إشعار البريد للمتسوق مرفوض بسبب Resend test mode. يلزم توثيق Domain في Resend.',
+          )
+        }
+
         console.error('Failed to deliver assigned-shopper notification:', assignedNotification.failures)
       }
     }
