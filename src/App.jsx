@@ -1152,11 +1152,7 @@ function App() {
       SUPER_ADMIN_ACCOUNT.personalEmail || SUPER_ADMIN_ACCOUNT.email,
     )
 
-    const hasManagedSuperAdminWithSameEmail = superadminRecipients.some(
-      (recipient) => normalizeEmail(recipient.email) === rootSuperAdminEmail,
-    )
-
-    if (rootSuperAdminEmail && !hasManagedSuperAdminWithSameEmail) {
+    if (rootSuperAdminEmail) {
       superadminRecipients.push({
         id: SUPER_ADMIN_ACCOUNT.id,
         role: 'superadmin',
@@ -1225,7 +1221,32 @@ function App() {
     const finalRecipients = dedupeNotificationRecipients(recipients)
     if (finalRecipients.length === 0) return 0
 
-    const rows = finalRecipients.map((recipient) => {
+    const inAppAudience = []
+    const seenAudience = new Set()
+
+    finalRecipients.forEach((recipient) => {
+      const role = String(recipient?.role ?? '').trim()
+      if (!role) return
+
+      const userId = String(recipient?.id ?? '').trim()
+      const email = normalizeEmail(recipient?.email)
+      const isShopper = role === 'shopper'
+      const audienceKey = isShopper ? `shopper:${userId || email}` : `${role}:all`
+
+      if (!audienceKey || seenAudience.has(audienceKey)) return
+
+      seenAudience.add(audienceKey)
+      inAppAudience.push({
+        role,
+        id: isShopper ? userId || null : null,
+        name: recipient?.name ?? '',
+        email,
+      })
+    })
+
+    if (inAppAudience.length === 0) return 0
+
+    const rows = inAppAudience.map((recipient) => {
       const content = getInAppNotificationContent(eventType, visit, recipient.role)
 
       return {
