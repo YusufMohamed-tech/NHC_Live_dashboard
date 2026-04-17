@@ -288,7 +288,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   if (!safeQuestion) {
     return {
       intent: 'empty',
-      answer: 'أهلاً! اسألني عن أي زيارة أو عدد أو حالة، وأنا هجاوبك بطريقة بسيطة وواضحة. مثلاً: "كام زيارة مكتملة النهارده؟" أو "هات آخر 5 زيارات". لو محتاج مثال أو شرح أكتر، قولي! 😊',
+      answer: 'أهلاً بيك! أنا هنا أساعدك في أي سؤال عن زياراتك أو بيانات الداشبورد. جرب تسألني عن "عدد الزيارات اليوم" أو "زيارات مكتب الرياض" أو حتى "مين المتحري الخفي في زيارة معينة". ولو عندك سؤال غريب أو محتاج شرح أكتر، اسأل براحتك وأنا هحاول أوضح بأكتر من طريقة! 😊',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -427,10 +427,24 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     return result;
   }
 
+  // Handle requests for more explanation or clarification flexibly
+  const clarificationKeywords = [
+    'شرح', 'فسر', 'وضح', 'explain', 'clarify', 'more details', 'details', 'expand', 'expand more', 'محتاج شرح', 'عايز شرح', 'عايز افهم', 'عايز تفاصيل', 'محتاج تفاصيل', 'ممكن توضح', 'ممكن تفاصيل', 'ممكن مثال', 'عايز مثال', 'محتاج مثال'
+  ];
+  if (clarificationKeywords.some((kw) => normalizedQuestion.includes(normalizeText(kw)))) {
+    return {
+      intent: 'clarification',
+      answer: 'أكيد! لو محتاج شرح أكتر لأي نقطة، ممكن تسألني عن مثال عملي أو توضحلي الجزء اللي مش واضح. مثلاً: "كام زيارة مكتملة النهارده؟" معناها أجيبلك عدد الزيارات اللي حالتها مكتملة اليوم، ولو عايز تفاصيل أكتر عن زيارة معينة، قولي رقمها أو اسم المكتب. لو عندك سيناريو معين في بالك، اكتبه وأنا أساعدك خطوة بخطوة! 😉',
+      matchedVisits: [],
+      suggestions: DEFAULT_SUGGESTIONS,
+      needsLlm: false,
+    }
+  }
+
   if (!isVisitDomainQuestion(normalizedQuestion)) {
     return {
       intent: 'out_of_scope',
-      answer: 'أنا هنا مخصوص لبيانات الداشبورد والزيارات. جرب تسألني عن "عدد الزيارات اليوم" أو "زيارات مكتب الرياض" أو حتى "مين المتحري الخفي في زيارة معينة". لو محتاج مثال أو شرح أكتر، قولي! 😊',
+      answer: 'أنا هنا أجاوبك عن كل ما يخص زياراتك وبيانات الداشبورد. لو سؤالك خارج النطاق، جرب تعيد صياغته أو تسألني عن "عدد الزيارات اليوم" أو "زيارات مكتب معين" أو حتى "تفاصيل متحري خفي". ولو عندك فكرة أو سؤال مش واضح، اكتبه بأي طريقة تعجبك وأنا هحاول أفهمك وأساعدك! 😊',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -440,7 +454,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   const latest = sortNewest(allVisits).slice(0, 5)
   return {
     intent: 'summary_fallback',
-    answer: `دي لمحة سريعة: ${buildSummary(allVisits)}. لو محتاج تفاصيل أكتر أو مثال عملي، جرب تسألني عن "زيارات اليوم" أو "زيارات مكتب معين". تحب أساعدك في سؤال معين؟ 😊`,
+    answer: `دي لمحة سريعة عن زياراتك: ${buildSummary(allVisits)}. لو عندك سؤال محدد أو محتاج توضيح أكتر، جرب تسألني عن "زيارات اليوم" أو "زيارات مكتب معين" أو حتى "تفاصيل متحري خفي". أنا هنا أساعدك بأي طريقة تناسبك، ولو عندك فكرة أو سيناريو معين اكتبه وأنا أشرحلك خطوة بخطوة! 😉`,
     matchedVisits: latest,
     suggestions: DEFAULT_SUGGESTIONS,
     needsLlm: true,
