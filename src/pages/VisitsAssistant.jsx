@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase'
 import { runVisitAssistant, summarizeVisitsForModel } from '../utils/visitAssistant'
 
 const USE_LLM_FALLBACK = String(import.meta.env.VITE_VISITS_ASSISTANT_USE_LLM ?? 'false') === 'true'
-const TYPEWRITER_DELAY_MS = 14
-const TYPEWRITER_CHUNK_SIZE = 2
+const TYPEWRITER_DELAY_MS = 10
+const TYPEWRITER_CHUNK_SIZE = 4
 
 function getVisitPath(role, visitId) {
   const safeVisitId = String(visitId ?? '').trim()
@@ -48,13 +48,13 @@ function buildInitialMessage() {
   return {
     id: 'assistant-initial',
     role: 'assistant',
-    text: 'أنا مساعد الزيارات. اسألني عن حالة الزيارات، العدد، المدينة، أو المتحري الخفي.',
+    text: 'أنا مساعدك في الزيارات. اسأل براحتك عن العدد، الحالة، المدينة أو المتحري الخفي.',
     matches: [],
     suggestions: [
-      'كم عدد الزيارات المعلقة اليوم؟',
-      'اعرض آخر 5 زيارات',
-      'زيارات مدينة الرياض',
-      'ما هي الزيارات الخاصة بمتحري خفي معيّن؟',
+      'كام زيارة معلقة النهارده؟',
+      'هات آخر 5 زيارات',
+      'ورّيني زيارات مدينة الرياض',
+      'عايز زيارات متحري خفي معيّن',
     ],
   }
 }
@@ -98,15 +98,23 @@ export default function VisitsAssistant() {
       return localResult
     }
 
+    // call LLM with a timeout so UI doesn't hang waiting for a slow network/model
+    const compactVisits = summarizeVisitsForModel(visits, shoppersById, 80)
+    const invokePromise = supabase.functions.invoke('dashboard-visit-assistant', {
+      body: {
+        question: inputQuestion,
+        role: user?.role || 'admin',
+        visits: compactVisits,
+      },
+    })
+
+    const TIMEOUT_MS = Number(import.meta.env.VITE_VISITS_ASSISTANT_LLM_TIMEOUT_MS ?? 3000)
+
     try {
-      const compactVisits = summarizeVisitsForModel(visits, shoppersById, 80)
-      const { data, error } = await supabase.functions.invoke('dashboard-visit-assistant', {
-        body: {
-          question: inputQuestion,
-          role: user?.role || 'admin',
-          visits: compactVisits,
-        },
-      })
+      const { data, error } = await Promise.race([
+        invokePromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), TIMEOUT_MS)),
+      ])
 
       if (error || !data?.answer) {
         return localResult
@@ -116,7 +124,8 @@ export default function VisitsAssistant() {
         ...localResult,
         answer: data.answer,
       }
-    } catch {
+    } catch (err) {
+      // Timeout or other error — return localResult quickly to avoid long UI loading
       return localResult
     }
   }
@@ -243,7 +252,7 @@ export default function VisitsAssistant() {
           <div>
             <h2 className="font-display text-2xl font-black text-slate-900">مساعد الزيارات</h2>
             <p className="text-sm text-slate-500">
-              مساعد فوري خاص بالداشبورد للإجابة عن بيانات الزيارات.
+              مساعدك السريع لبيانات الزيارات. اسأل وأنا أرد عليك فورًا.
             </p>
           </div>
         </div>
@@ -262,7 +271,7 @@ export default function VisitsAssistant() {
             >
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
                 <MessageSquareText className="h-3.5 w-3.5" />
-                {message.role === 'user' ? 'أنت' : 'المساعد'}
+                {message.role === 'user' ? 'أنت' : 'مساعدك'}
               </div>
 
               <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
@@ -312,7 +321,7 @@ export default function VisitsAssistant() {
           {isThinking && !typingAssistantId && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               <LoaderCircle className="h-4 w-4 animate-spin" />
-              جاري تحليل السؤال...
+              ثانية واحدة... بشوفلك الإجابة.
             </div>
           )}
         </div>
@@ -329,7 +338,7 @@ export default function VisitsAssistant() {
           <input
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="اسأل عن الزيارات... مثال: كم زيارة مكتملة اليوم؟"
+            placeholder="اسألني براحتك... مثال: كام زيارة مكتملة النهارده؟"
             className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
           <button
