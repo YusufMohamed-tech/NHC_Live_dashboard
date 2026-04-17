@@ -8,8 +8,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { ErrorState, LoadingState } from '../../components/DataState'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import StatusBadge from '../../components/StatusBadge'
@@ -53,6 +53,9 @@ export default function Visits() {
   const debouncedQuery = useDebouncedValue(query, 300)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingVisit, setEditingVisit] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const targetVisitId = String(searchParams.get('visitId') ?? '').trim()
+  const hasTargetVisit = targetVisitId !== '' && visits.some((visit) => visit.id === targetVisitId)
   const [newVisit, setNewVisit] = useState(() =>
     getInitialVisit(''),
   )
@@ -69,15 +72,49 @@ export default function Visits() {
   }
 
   const filteredVisits = useMemo(() => {
+    const effectiveFilter = hasTargetVisit ? 'الكل' : activeFilter
+    const effectiveQuery = hasTargetVisit ? '' : debouncedQuery
+
     return visits.filter((visit) => {
-      const matchFilter = activeFilter === 'الكل' || visit.status === activeFilter
+      const matchFilter = effectiveFilter === 'الكل' || visit.status === effectiveFilter
       const matchQuery = `${visit.officeName} ${visit.city}`
         .toLowerCase()
-        .includes(debouncedQuery.toLowerCase())
+        .includes(effectiveQuery.toLowerCase())
 
       return matchFilter && matchQuery
     })
-  }, [activeFilter, debouncedQuery, visits])
+  }, [activeFilter, debouncedQuery, hasTargetVisit, visits])
+
+  useEffect(() => {
+    if (!targetVisitId) return
+
+    const targetExistsInFiltered = filteredVisits.some((visit) => visit.id === targetVisitId)
+    if (!targetExistsInFiltered) {
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.delete('visitId')
+      setSearchParams(nextParams, { replace: true })
+      return
+    }
+
+    const card = document.getElementById(`visit-card-${targetVisitId}`)
+    if (!card) return
+
+    card.classList.add('border-indigo-300', 'ring-2', 'ring-indigo-200')
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    const highlightTimer = window.setTimeout(() => {
+      card.classList.remove('border-indigo-300', 'ring-2', 'ring-indigo-200')
+    }, 2600)
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('visitId')
+    setSearchParams(nextParams, { replace: true })
+
+    return () => {
+      window.clearTimeout(highlightTimer)
+      card.classList.remove('border-indigo-300', 'ring-2', 'ring-indigo-200')
+    }
+  }, [filteredVisits, searchParams, setSearchParams, targetVisitId])
 
   const handleCreateVisit = async (event) => {
     event.preventDefault()
@@ -213,6 +250,7 @@ export default function Visits() {
           return (
             <article
               key={visit.id}
+              id={`visit-card-${visit.id}`}
               className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex items-center justify-between">

@@ -31,13 +31,23 @@ function formatDateTime(value) {
 }
 
 function getVisitPath(role, visitId) {
+  const safeVisitId = String(visitId ?? '').trim()
+
   if (role === 'shopper') {
-    return visitId ? `/shopper/visits/${visitId}` : '/shopper/visits'
+    return safeVisitId ? `/shopper/visits/${encodeURIComponent(safeVisitId)}` : '/shopper/visits'
   }
 
-  if (role === 'superadmin') return '/superadmin/visits'
-  if (role === 'ops') return '/ops/visits'
-  return '/admin/visits'
+  if (role === 'superadmin') {
+    return safeVisitId
+      ? `/superadmin/visits?visitId=${encodeURIComponent(safeVisitId)}`
+      : '/superadmin/visits'
+  }
+
+  if (role === 'ops') {
+    return safeVisitId ? `/ops/visits?visitId=${encodeURIComponent(safeVisitId)}` : '/ops/visits'
+  }
+
+  return safeVisitId ? `/admin/visits?visitId=${encodeURIComponent(safeVisitId)}` : '/admin/visits'
 }
 
 export default function NotificationCenter() {
