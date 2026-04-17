@@ -64,6 +64,16 @@ const DEFAULT_SUGGESTIONS = [
   'فيه زيارات في الرياض؟',
 ]
 
+// Flexible keywords for 'top shopper' questions (multiple phrasings supported)
+const TOP_SHOPPER_KEYWORDS = [
+  'اعلى متحري', 'أعلى متحري', 'اكثر متحري', 'أكثر متحري', 'top shopper', 'most visits', 'most active', 'top performer',
+  'مين عمل زيارات اكتر', 'مين عمل زيارات أكثر', 'مين نفذ زيارات اكتر', 'مين نفذ زيارات أكثر',
+  'مين جاب اعلى تقييم', 'مين جاب أعلى تقييم', 'مين تقييمه اعلى', 'مين تقييمه أعلى', 'افضل متحري', 'أفضل متحري',
+  'مين عنده زيارات كتير', 'مين عنده زيارات أكثر', 'مين عنده تقييم عالي', 'مين عنده تقييم أعلى',
+  'مين متفوق', 'مين متفوق في الزيارات', 'مين متفوق في التقييمات',
+  'top rated', 'highest rating', 'best rating', 'most rated', 'top points', 'اعلى نقاط', 'أعلى نقاط',
+]
+
 function normalizeText(value) {
   return String(value ?? '')
     .trim()
@@ -297,6 +307,90 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
 
   const shoppersById = new Map((shoppers ?? []).map((shopper) => [shopper.id, shopper]))
   const allVisits = Array.isArray(visits) ? visits : []
+
+  // If the user asks about top/most active or top-rated shoppers, return a concise main-points summary
+  if (hasAnyKeyword(normalizedQuestion, TOP_SHOPPER_KEYWORDS)) {
+    const visitsByShopper = new Map()
+    for (const v of allVisits) {
+      if (!v.assignedShopperId) continue
+      visitsByShopper.set(v.assignedShopperId, (visitsByShopper.get(v.assignedShopperId) || 0) + 1)
+    }
+
+    let topShopperId = null
+    let topVisits = 0
+    for (const [id, cnt] of visitsByShopper.entries()) {
+      if (cnt > topVisits) {
+        topVisits = cnt
+        topShopperId = id
+      }
+    }
+
+    // detect numeric evaluation/rating fields (flexible field names)
+    const ratingFields = ['rating', 'score', 'evaluation', 'points', 'pointsEarned']
+    const ratingsByShopper = new Map()
+    for (const v of allVisits) {
+      if (!v.assignedShopperId) continue
+      let num = null
+      for (const f of ratingFields) {
+        if (v[f] !== undefined && v[f] !== null && !Number.isNaN(Number(v[f]))) {
+          num = Number(v[f])
+          break
+        }
+      }
+      if (num !== null) {
+        const arr = ratingsByShopper.get(v.assignedShopperId) || []
+        arr.push(num)
+        ratingsByShopper.set(v.assignedShopperId, arr)
+      }
+    }
+
+    let topRatedShopperId = null
+    let topAvg = 0
+    for (const [id, arr] of ratingsByShopper.entries()) {
+      const avg = arr.reduce((a, b) => a + b, 0) / arr.length
+      if (avg > topAvg) {
+        topAvg = avg
+        topRatedShopperId = id
+      }
+    }
+
+    const parts = []
+    const shoppersMap = shoppersById
+
+    if (topShopperId && shoppersMap.get(topShopperId)) {
+      const s = shoppersMap.get(topShopperId)
+      const cities = [...new Set(allVisits.filter((v) => v.assignedShopperId === topShopperId).map((v) => v.city).filter(Boolean))].slice(0, 2)
+      parts.push(`أكثر متحري خفي نشاطًا هو "${s.name}" بعدد ${topVisits} زيارة. هذا يعني أنه نفذ أكبر عدد زيارات في الفترة الحالية.`)
+      parts.push(`مثال سريع: ${s.name} نفذ ${topVisits} زيارة في مدن مثل: ${cities.length ? cities.join(', ') : 'مدن مختلفة'}.`)
+    }
+
+    if (topRatedShopperId && shoppersMap.get(topRatedShopperId)) {
+      const s = shoppersMap.get(topRatedShopperId)
+      const offices = [...new Set(allVisits.filter((v) => v.assignedShopperId === topRatedShopperId && v.officeName).map((v) => v.officeName))].slice(0, 2)
+      parts.push(`أما أعلى تقييم فكان لدى "${s.name}" بمتوسط تقييم ${topAvg.toFixed(2)}.`)
+      if (offices.length) parts.push(`مثال: حصل على تقييمات مرتفعة في مكاتب مثل: ${offices.join(', ')}.`)
+    }
+
+    let answer = parts.length ? parts.join('\n\n') : 'لا توجد بيانات كافية عن المتحريين أو التقييمات حالياً.'
+    if (parts.length) answer += '\n\nتحب أشوف بعض الزيارات كنماذج أو أعمل مقارنة بين متحريين؟'
+
+    // sample matched visits (limit to 3) to give quick context without dumping كل التقارير
+    let sample = []
+    if (topShopperId) sample = sortNewest(allVisits).filter((v) => v.assignedShopperId === topShopperId).slice(0, 3)
+    else if (topRatedShopperId) sample = sortNewest(allVisits).filter((v) => v.assignedShopperId === topRatedShopperId).slice(0, 3)
+
+    return {
+      intent: 'top_shopper_summary',
+      answer,
+      matchedVisits: sample,
+      suggestions: [
+        'هات تفاصيل زيارات المتحري الأعلى',
+        'قارن بين متحريين في الأداء',
+        'مين أكتر متحري نشط الشهر ده؟',
+      ],
+      needsLlm: false,
+    }
+  }
 
   const visitId = extractVisitId(safeQuestion)
   if (visitId) {
