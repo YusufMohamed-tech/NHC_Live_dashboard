@@ -288,7 +288,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   if (!safeQuestion) {
     return {
       intent: 'empty',
-      answer: 'قولّي سؤالك عن الزيارات وأنا معاك.',
+      answer: 'أهلاً! اسألني عن أي زيارة أو عدد أو حالة، وأنا هجاوبك بطريقة بسيطة وواضحة. مثلاً: "كام زيارة مكتملة النهارده؟" أو "هات آخر 5 زيارات". لو محتاج مثال أو شرح أكتر، قولي! 😊',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -305,7 +305,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     if (!found) {
       result = {
         intent: 'visit_by_id',
-        answer: `ملقتش زيارة بالمعرف ${visitId}. جرّب تبعته تاني أو قولّي أجيبلك آخر الزيارات.`,
+        answer: `ممكتش زيارة بالمعرف ${visitId}. لو تحب، ممكن أجيبلك آخر الزيارات أو تساعدني بمعلومة إضافية؟ جرب تسأل عن "آخر 5 زيارات" كمثال. 😊`,
         matchedVisits: [],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -314,7 +314,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
       const shopperName = shoppersById.get(found.assignedShopperId)?.name ?? ''
       result = {
         intent: 'visit_by_id',
-        answer: `تمام، لقيت الزيارة دي: ${formatVisitLine(found, shopperName)}`,
+        answer: `لقيت الزيارة المطلوبة! 👀\n${formatVisitLine(found, shopperName)}\nلو محتاج تفاصيل أكتر أو عايز تعرف زيارات تانية قولي! مثال: "هات زيارات اليوم".`,
         matchedVisits: [found],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -363,7 +363,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     if (latest.length === 0) {
       result = {
         intent: 'latest_visits',
-        answer: 'مفيش زيارات مطابقة للفلتر ده في آخر النتائج.',
+        answer: 'مفيش زيارات مطابقة للفلتر ده في آخر النتائج. جرب تغير الفلتر أو تسألني عن "كل الزيارات المكتملة" مثلاً! 😊',
         matchedVisits: [],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -371,7 +371,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     } else {
       result = {
         intent: 'latest_visits',
-        answer: `تمام، دي أحدث ${latest.length} زيارة مطابقة لطلبك.`,
+        answer: `دي أحدث ${latest.length} زيارة لطلبك! مثال: لو عايز تفاصيل أكتر عن زيارة معينة، قولي رقمها أو اسألني عن "زيارات اليوم". 😉`,
         matchedVisits: latest,
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -399,7 +399,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     if (wantsCount) {
       result = {
         intent: 'count_filtered_visits',
-        answer: `تمام، عدد الزيارات المطابقة${summary}: ${filtered.length}`,
+        answer: `عندك ${filtered.length} زيارة مطابقة${summary}! لو محتاج تفاصيل عن أي واحدة منهم، قولي رقمها أو اسألني عن "آخر زيارات". مثال: "هات آخر 3 زيارات مكتملة". 😉`,
         matchedVisits: sorted.slice(0, 10),
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -407,7 +407,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     } else if (filtered.length === 0) {
       result = {
         intent: 'filtered_visits',
-        answer: `للأسف مفيش زيارات مطابقة${summary}.`,
+        answer: `مفيش زيارات مطابقة${summary}. جرب تغير الفلتر أو تسألني عن "زيارات اليوم" أو "كل الزيارات المكتملة". لو محتاج مساعدة في صياغة السؤال، قولي! 😊`,
         matchedVisits: [],
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -415,7 +415,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     } else {
       result = {
         intent: 'filtered_visits',
-        answer: `حلو، لقيت ${filtered.length} زيارة مطابقة${summary}.`,
+        answer: `لقيت ${filtered.length} زيارة مطابقة${summary}! لو عايز تفاصيل أكتر أو مثال على زيارة معينة، قولي اسم المكتب أو المدينة أو رقم الزيارة. مثال: "هات زيارات مكتب جدة". 😉`,
         matchedVisits: sorted.slice(0, 10),
         suggestions: DEFAULT_SUGGESTIONS,
         needsLlm: false,
@@ -430,7 +430,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   if (!isVisitDomainQuestion(normalizedQuestion)) {
     return {
       intent: 'out_of_scope',
-      answer: 'أنا هنا مخصوص لبيانات الداشبورد والزيارات. اسألني عن العدد، الحالة، المدينة أو متحري خفي معيّن.',
+      answer: 'أنا هنا مخصوص لبيانات الداشبورد والزيارات. جرب تسألني عن "عدد الزيارات اليوم" أو "زيارات مكتب الرياض" أو حتى "مين المتحري الخفي في زيارة معينة". لو محتاج مثال أو شرح أكتر، قولي! 😊',
       matchedVisits: [],
       suggestions: DEFAULT_SUGGESTIONS,
       needsLlm: false,
@@ -440,7 +440,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
   const latest = sortNewest(allVisits).slice(0, 5)
   return {
     intent: 'summary_fallback',
-    answer: `دي لمحة سريعة: ${buildSummary(allVisits)}. ولو عايز تفاصيل أكتر، قولّي الحالة أو المدينة أو اسم المتحري الخفي.`,
+    answer: `دي لمحة سريعة: ${buildSummary(allVisits)}. لو محتاج تفاصيل أكتر أو مثال عملي، جرب تسألني عن "زيارات اليوم" أو "زيارات مكتب معين". تحب أساعدك في سؤال معين؟ 😊`,
     matchedVisits: latest,
     suggestions: DEFAULT_SUGGESTIONS,
     needsLlm: true,
