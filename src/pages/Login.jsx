@@ -79,10 +79,10 @@ export default function Login({ onLogin }) {
             alt="NHC"
             className="mx-auto h-20 w-20 object-contain"
           />
-          <h1 className="mt-4 font-display text-5xl font-black text-slate-900 max-md:text-4xl">
+          <h1 className="mt-4 font-display text-5xl font-black leading-[1.32] text-slate-900 max-md:text-4xl max-md:leading-[1.4]">
             نظام المتحري الخفي
           </h1>
-          <p className="mt-2 text-lg text-slate-500">اختر دورك للدخول إلى النظام</p>
+          <p className="mt-4 text-lg leading-relaxed text-slate-500">اختر دورك للدخول إلى النظام</p>
         </section>
 
         <section className="mt-10 grid gap-4 md:grid-cols-2">
