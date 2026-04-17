@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   BellRing,
+  Bot,
   LayoutDashboard,
   ScanSearch,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ function getTabs(role, unreadNotificationsCount = 0) {
   const tabs = [
     { label: 'نظرة عامة', to: `${basePath}/overview`, icon: LayoutDashboard },
     { label: 'الزيارات', to: `${basePath}/visits`, icon: ScanSearch },
+    { label: 'مساعد الزيارات', to: `${basePath}/assistant`, icon: Bot },
     {
       label: 'الإشعارات',
       to: `${basePath}/notifications`,
@@ -35,6 +37,7 @@ function getTabs(role, unreadNotificationsCount = 0) {
 
 function getTitle(pathname, role) {
   if (pathname.includes('/visits')) return 'إدارة الزيارات'
+  if (pathname.includes('/assistant')) return 'مساعد الزيارات'
   if (pathname.includes('/notifications')) return 'مركز الإشعارات'
   if (pathname.includes('/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/points')) return 'إدارة النقاط'

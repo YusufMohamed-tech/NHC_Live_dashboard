@@ -20,6 +20,7 @@ const SuperAdminLayout = lazy(() => import('./pages/superadmin/SuperAdminLayout'
 const SuperAdminOverview = lazy(() => import('./pages/superadmin/Overview'))
 const ManageAdmins = lazy(() => import('./pages/superadmin/ManageAdmins'))
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter'))
+const VisitsAssistant = lazy(() => import('./pages/VisitsAssistant'))
 
 const AUTH_STORAGE_KEY = 'nhc-mystery-auth'
 const SHOW_POINTS_SECTION = import.meta.env.DEV
@@ -2652,6 +2653,7 @@ function App() {
           <Route path="managers" element={<ManageAdmins />} />
           <Route path="shoppers" element={<Shoppers />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="assistant" element={<VisitsAssistant />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
           {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
@@ -2668,6 +2670,7 @@ function App() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="assistant" element={<VisitsAssistant />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
           {SHOW_POINTS_SECTION && <Route path="points" element={<Points />} />}
@@ -2684,6 +2687,7 @@ function App() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="visits" element={<Visits />} />
+          <Route path="assistant" element={<VisitsAssistant />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<AdminReports />} />
         </Route>
@@ -2702,6 +2706,7 @@ function App() {
           <Route path="visits/:visitId" element={<VisitDetail />} />
           <Route path="completed" element={<CompletedVisits />} />
           <Route path="completed/:visitId" element={<VisitDetail fromCompleted />} />
+          <Route path="assistant" element={<VisitsAssistant />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="reports" element={<ShopperReports />} />
         </Route>

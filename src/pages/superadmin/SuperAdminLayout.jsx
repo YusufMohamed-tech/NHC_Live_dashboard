@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   BellRing,
+  Bot,
   LayoutDashboard,
   ScanSearch,
   ShieldCheck,
@@ -18,6 +19,7 @@ const superAdminTabs = [
   { label: 'إدارة المديرين', to: '/superadmin/managers', icon: ShieldCheck },
   { label: 'المتسوقون', to: '/superadmin/shoppers', icon: Users },
   { label: 'الزيارات', to: '/superadmin/visits', icon: ScanSearch },
+  { label: 'مساعد الزيارات', to: '/superadmin/assistant', icon: Bot },
   { label: 'الإشعارات', to: '/superadmin/notifications', icon: BellRing },
   { label: 'التقارير', to: '/superadmin/reports', icon: BarChart3 },
 ]
@@ -30,6 +32,7 @@ function getTitle(pathname) {
   if (pathname.includes('/superadmin/managers')) return 'إدارة المديرين'
   if (pathname.includes('/superadmin/shoppers')) return 'إدارة المتسوقين'
   if (pathname.includes('/superadmin/visits')) return 'إدارة الزيارات'
+  if (pathname.includes('/superadmin/assistant')) return 'مساعد الزيارات'
   if (pathname.includes('/superadmin/notifications')) return 'مركز الإشعارات'
   if (pathname.includes('/superadmin/reports')) return 'التقارير والإحصائيات'
   if (pathname.includes('/superadmin/points')) return 'إدارة النقاط'

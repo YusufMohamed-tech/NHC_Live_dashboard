@@ -1,4 +1,4 @@
-import { BellRing, FileBarChart2, LayoutDashboard, ScanSearch, SquareCheckBig } from 'lucide-react'
+import { BellRing, Bot, FileBarChart2, LayoutDashboard, ScanSearch, SquareCheckBig } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import Footer from '../../components/Footer'
 import Navbar from '../../components/Navbar'
@@ -8,6 +8,7 @@ function getShopperTabs(unreadNotificationsCount = 0) {
     { label: 'لوحة التحكم', to: '/shopper/dashboard', icon: LayoutDashboard },
     { label: 'الزيارات', to: '/shopper/visits', icon: ScanSearch },
     { label: 'الزيارات المكتملة', to: '/shopper/completed', icon: SquareCheckBig },
+    { label: 'مساعد الزيارات', to: '/shopper/assistant', icon: Bot },
     {
       label: 'الإشعارات',
       to: '/shopper/notifications',
@@ -26,6 +27,7 @@ function getTitle(pathname) {
     return 'تفاصيل الزيارة المكتملة'
   if (pathname.includes('/shopper/visits')) return 'الزيارات المخصصة'
   if (pathname.includes('/shopper/completed')) return 'الزيارات المكتملة'
+  if (pathname.includes('/shopper/assistant')) return 'مساعد الزيارات'
   if (pathname.includes('/shopper/notifications')) return 'مركز الإشعارات'
   if (pathname.includes('/shopper/reports')) return 'التقارير'
   return 'لوحة تحكم المتسوق'
