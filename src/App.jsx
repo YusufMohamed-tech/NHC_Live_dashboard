@@ -190,7 +190,7 @@ function getInAppNotificationContent(eventType, visit, recipientRole) {
 
   return {
     title: 'تمت إعادة إسناد زيارة',
-    description: `تم تغيير المتسوق المكلف بالزيارة${suffix}`,
+    description: `تم تغيير المتحري الخفي المكلف بالزيارة${suffix}`,
   }
 }
 
@@ -2074,7 +2074,7 @@ function App() {
 
         if (isResendTestingRestrictionError(firstFailure)) {
           window.alert(
-            'تم حفظ الزيارة لكن إشعار البريد للمتسوق مرفوض بسبب Resend test mode. يلزم توثيق Domain في Resend.',
+            'تم حفظ الزيارة لكن إشعار البريد للمتحري الخفي مرفوض بسبب Resend test mode. يلزم توثيق Domain في Resend.',
           )
         }
 

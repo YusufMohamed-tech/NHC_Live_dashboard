@@ -16,7 +16,10 @@ const VISIT_DOMAIN_KEYWORDS = [
   'city',
   'فرع',
   'office',
-  'متسوق',
+  'متحري',
+  'متحريين',
+  'متحري خفي',
+  'متحريين خفيين',
   'shopper',
   'حالة',
   'status',
@@ -197,7 +200,7 @@ function formatVisitLine(visit, shopperName = '') {
   ].filter(Boolean)
 
   if (shopperName) {
-    pieces.push(`المتسوق: ${shopperName}`)
+    pieces.push(`المتحري الخفي: ${shopperName}`)
   }
 
   return pieces.join(' | ')
@@ -375,7 +378,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
     if (status) details.push(`الحالة: ${status}`)
     if (entities.city) details.push(`المدينة: ${entities.city}`)
     if (entities.office) details.push(`المكتب: ${entities.office}`)
-    if (entities.shopperName) details.push(`المتسوق: ${entities.shopperName}`)
+    if (entities.shopperName) details.push(`المتحري الخفي: ${entities.shopperName}`)
     if (dateFilter?.type === 'date') details.push(`التاريخ: ${dateFilter.value}`)
     if (dateFilter?.type === 'week') details.push('الفترة: هذا الأسبوع')
     if (dateFilter?.type === 'month') details.push('الفترة: هذا الشهر')
@@ -426,7 +429,7 @@ export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
 
   return {
     intent: 'summary_fallback',
-    answer: `${buildSummary(allVisits)}. لو محتاج تفاصيل أكثر، اذكر الحالة أو المدينة أو اسم المتسوق.`,
+    answer: `${buildSummary(allVisits)}. لو محتاج تفاصيل أكثر، اذكر الحالة أو المدينة أو اسم المتحري الخفي.`,
     matchedVisits: latest,
     suggestions: DEFAULT_SUGGESTIONS,
     needsLlm: true,

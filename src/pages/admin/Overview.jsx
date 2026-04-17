@@ -81,7 +81,7 @@ export default function Overview() {
       styles: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
     },
     {
-      label: 'إجمالي المتسوقين',
+      label: 'إجمالي المتحريين الخفيين',
       value: shoppers.length,
       hint: `${stats.activeShoppers} نشط`,
       icon: Users2,
@@ -299,7 +299,7 @@ export default function Overview() {
 
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h3 className="font-display text-xl font-black text-slate-900">
-            أفضل المتسوقين
+            أفضل المتحريين
           </h3>
           <div className="mt-4 space-y-3">
             {topShoppers.map((shopper, index) => (

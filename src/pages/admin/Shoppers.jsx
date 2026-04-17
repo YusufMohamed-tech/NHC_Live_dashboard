@@ -57,7 +57,7 @@ export default function Shoppers() {
   }
 
   const handleDeleteShopper = async (shopperId) => {
-    const confirmed = window.confirm('هل أنت متأكد من حذف هذا المتسوق؟')
+    const confirmed = window.confirm('هل أنت متأكد من حذف هذا المتحري الخفي؟')
     if (!confirmed) return
     await deleteShopper(shopperId)
   }
@@ -98,8 +98,8 @@ export default function Shoppers() {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
-            <h2 className="font-display text-2xl font-black text-slate-900">إدارة المتسوقين</h2>
-            <p className="text-sm text-slate-500">إدارة حسابات المتسوقين وحالات النشاط</p>
+            <h2 className="font-display text-2xl font-black text-slate-900">إدارة المتحريين الخفيين</h2>
+            <p className="text-sm text-slate-500">إدارة حسابات المتحريين الخفيين وحالات النشاط</p>
           </div>
 
           <button
@@ -108,7 +108,7 @@ export default function Shoppers() {
             className="ms-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700"
           >
             <Plus className="h-4 w-4" />
-            إضافة متسوق
+            إضافة متحري خفي
           </button>
         </div>
 
@@ -138,7 +138,7 @@ export default function Shoppers() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="البحث عن متسوق..."
+            placeholder="البحث عن متحري خفي..."
             className="h-11 w-full rounded-xl border border-slate-300 bg-white pe-10 ps-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </div>
@@ -149,7 +149,7 @@ export default function Shoppers() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                <th className="px-4 py-3 text-start font-black">المتسوق</th>
+                <th className="px-4 py-3 text-start font-black">المتحري الخفي</th>
                 <th className="px-4 py-3 text-start font-black">المدينة</th>
                 <th className="px-4 py-3 text-start font-black">الزيارات</th>
                 {SHOW_POINTS_SECTION && <th className="px-4 py-3 text-start font-black">النقاط</th>}
@@ -225,14 +225,14 @@ export default function Shoppers() {
                       <div className="text-center">
                         <UserRound className="mx-auto h-10 w-10 text-slate-300" />
                         <p className="mt-3 text-sm font-semibold text-slate-500">
-                          لا يوجد متسوقون بعد
+                          لا يوجد متحريون خفيون بعد
                         </p>
                         <button
                           type="button"
                           onClick={() => setIsAddModalOpen(true)}
                           className="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
                         >
-                          إضافة متسوق
+                          إضافة متحري خفي
                         </button>
                       </div>
                     ) : (
@@ -252,7 +252,7 @@ export default function Shoppers() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">إضافة متسوق</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">إضافة متحري خفي</h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
@@ -269,7 +269,7 @@ export default function Shoppers() {
                 onChange={(event) =>
                   setNewShopper((previous) => ({ ...previous, name: event.target.value }))
                 }
-                placeholder="اسم المتسوق"
+                placeholder="اسم المتحري الخفي"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input
@@ -345,7 +345,7 @@ export default function Shoppers() {
                 type="submit"
                 className="h-11 w-full rounded-xl bg-sky-600 text-sm font-bold text-white transition hover:bg-sky-700"
               >
-                حفظ المتسوق
+                حفظ المتحري الخفي
               </button>
             </form>
           </div>
@@ -356,7 +356,7 @@ export default function Shoppers() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-black text-slate-900">تعديل المتسوق</h3>
+              <h3 className="font-display text-xl font-black text-slate-900">تعديل المتحري الخفي</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -376,7 +376,7 @@ export default function Shoppers() {
                 onChange={(event) =>
                   setEditingForm((previous) => ({ ...previous, name: event.target.value }))
                 }
-                placeholder="اسم المتسوق"
+                placeholder="اسم المتحري الخفي"
                 className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500"
               />
               <input

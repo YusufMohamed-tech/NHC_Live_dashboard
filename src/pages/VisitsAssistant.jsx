@@ -38,7 +38,7 @@ function formatVisitCard(visit, shoppersById) {
     visit.date,
     visit.time,
     visit.status,
-    shopperName ? `المتسوق: ${shopperName}` : null,
+    shopperName ? `المتحري الخفي: ${shopperName}` : null,
   ]
     .filter(Boolean)
     .join(' | ')
@@ -48,13 +48,13 @@ function buildInitialMessage() {
   return {
     id: 'assistant-initial',
     role: 'assistant',
-    text: 'أنا مساعد الزيارات. اسألني عن حالة الزيارات، العدد، المدينة، أو المتسوق.',
+    text: 'أنا مساعد الزيارات. اسألني عن حالة الزيارات، العدد، المدينة، أو المتحري الخفي.',
     matches: [],
     suggestions: [
       'كم عدد الزيارات المعلقة اليوم؟',
       'اعرض آخر 5 زيارات',
       'زيارات مدينة الرياض',
-      'من هي الزيارات الخاصة بمتسوق معين؟',
+      'ما هي الزيارات الخاصة بمتحري خفي معيّن؟',
     ],
   }
 }

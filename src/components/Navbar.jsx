@@ -8,7 +8,7 @@ export default function Navbar({ title, user, onLogout, showLiveIndicator = fals
         ? 'مدير'
         : user?.role === 'ops'
           ? 'Ops'
-          : 'متسوق'
+          : 'متحري خفي'
 
   return (
     <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

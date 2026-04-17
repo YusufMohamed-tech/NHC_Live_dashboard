@@ -17,7 +17,7 @@ const SHOW_POINTS_SECTION = import.meta.env.DEV
 const superAdminTabs = [
   { label: 'نظرة عامة', to: '/superadmin/overview', icon: LayoutDashboard },
   { label: 'إدارة المديرين', to: '/superadmin/managers', icon: ShieldCheck },
-  { label: 'المتسوقون', to: '/superadmin/shoppers', icon: Users },
+  { label: 'المتحريون الخفيون', to: '/superadmin/shoppers', icon: Users },
   { label: 'الزيارات', to: '/superadmin/visits', icon: ScanSearch },
   { label: 'مساعد الزيارات', to: '/superadmin/assistant', icon: Bot },
   { label: 'الإشعارات', to: '/superadmin/notifications', icon: BellRing },
@@ -30,7 +30,7 @@ if (SHOW_POINTS_SECTION) {
 
 function getTitle(pathname) {
   if (pathname.includes('/superadmin/managers')) return 'إدارة المديرين'
-  if (pathname.includes('/superadmin/shoppers')) return 'إدارة المتسوقين'
+  if (pathname.includes('/superadmin/shoppers')) return 'إدارة المتحريين الخفيين'
   if (pathname.includes('/superadmin/visits')) return 'إدارة الزيارات'
   if (pathname.includes('/superadmin/assistant')) return 'مساعد الزيارات'
   if (pathname.includes('/superadmin/notifications')) return 'مركز الإشعارات'

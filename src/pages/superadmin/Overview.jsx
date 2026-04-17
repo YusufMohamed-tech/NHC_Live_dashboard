@@ -23,7 +23,7 @@ export default function Overview() {
       <section className="rounded-2xl bg-gradient-to-l from-indigo-700 via-violet-600 to-sky-500 p-6 text-white shadow-sm">
         <h2 className="font-display text-3xl font-black">نظرة عامة شاملة</h2>
         <p className="mt-2 text-sm text-white/85">
-          متابعة كاملة لسوبر أدمن والمديرين والمتسوقين والزيارات على مستوى النظام
+          متابعة كاملة لسوبر أدمن والمديرين والمتحريين الخفيين والزيارات على مستوى النظام
         </p>
       </section>
 
@@ -34,7 +34,7 @@ export default function Overview() {
         </article>
 
         <article className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-          <p className="text-xs text-sky-700">إجمالي المتسوقين</p>
+          <p className="text-xs text-sky-700">إجمالي المتحريين الخفيين</p>
           <p className="mt-1 text-2xl font-black text-sky-800">{shoppers.length}</p>
         </article>
 
@@ -133,7 +133,7 @@ export default function Overview() {
           <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-slate-700">
               <Coins className="h-4 w-4" />
-              <h4 className="font-black">متوسط النقاط لكل متسوق</h4>
+              <h4 className="font-black">متوسط النقاط لكل متحري خفي</h4>
             </div>
             <p className="mt-2 text-2xl font-black text-slate-900">
               {shoppers.length ? Math.round(totalPoints / shoppers.length) : 0}

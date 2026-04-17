@@ -309,7 +309,7 @@ export default function Visits() {
 
               <div className="mt-3 text-sm">
                 <span className="text-slate-500">
-                  المتسوق: {shopper ? shopper.name : 'في انتظار التعيين'}
+                  المتحري الخفي: {shopper ? shopper.name : 'في انتظار التعيين'}
                 </span>
               </div>
             </article>
@@ -447,7 +447,7 @@ export default function Visits() {
 
               {canAssignShopper ? (
                 <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                  <span>المتسوق</span>
+                  <span>المتحري الخفي</span>
                   <select
                     value={newVisit.assignedShopperId}
                     disabled={!hasAssignableShoppers}
@@ -604,7 +604,7 @@ export default function Visits() {
 
               {canAssignShopper ? (
                 <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
-                  <span>المتسوق</span>
+                  <span>المتحري الخفي</span>
                   <select
                     value={editingVisit.assignedShopperId ?? ''}
                     onChange={(event) =>
@@ -625,7 +625,7 @@ export default function Visits() {
                 </label>
               ) : (
                 <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  المتسوق: {getShopperById(editingVisit.assignedShopperId)?.name ?? 'في انتظار التعيين'}
+                  المتحري الخفي: {getShopperById(editingVisit.assignedShopperId)?.name ?? 'في انتظار التعيين'}
                 </div>
               )}
 

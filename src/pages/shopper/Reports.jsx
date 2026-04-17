@@ -145,7 +145,7 @@ export default function Reports() {
     },
     {
       id: 'distinguished',
-      title: 'متسوق مميز',
+      title: 'متحري خفي مميز',
       description: 'متوسط تقييم 4 فأعلى',
       unlocked: completedVisits.length > 0 && averageScore >= 4,
       icon: Star,

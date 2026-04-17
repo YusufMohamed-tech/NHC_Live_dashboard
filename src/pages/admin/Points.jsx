@@ -127,7 +127,7 @@ export default function Points() {
             <p className="mt-1 text-2xl font-black text-amber-800">{totalPoints}</p>
           </div>
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-            <p className="text-xs text-sky-700">متوسط لكل متسوق</p>
+            <p className="text-xs text-sky-700">متوسط لكل متحري خفي</p>
             <p className="mt-1 text-2xl font-black text-sky-800">{averagePerShopper}</p>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -138,7 +138,7 @@ export default function Points() {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="font-display text-xl font-black text-slate-900">ترتيب المتسوقين حسب النقاط</h3>
+        <h3 className="font-display text-xl font-black text-slate-900">ترتيب المتحريين الخفيين حسب النقاط</h3>
         <div className="mt-4 space-y-3">
           {sortedShoppers.map((shopper, index) => {
             const rank = index + 1
