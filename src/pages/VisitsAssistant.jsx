@@ -1,11 +1,13 @@
 import { Bot, LoaderCircle, MessageSquareText, SendHorizonal } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '../components/DataState'
 import { supabase } from '../lib/supabase'
 import { runVisitAssistant, summarizeVisitsForModel } from '../utils/visitAssistant'
 
 const USE_LLM_FALLBACK = String(import.meta.env.VITE_VISITS_ASSISTANT_USE_LLM ?? 'false') === 'true'
+const TYPEWRITER_DELAY_MS = 14
+const TYPEWRITER_CHUNK_SIZE = 2
 
 function getVisitPath(role, visitId) {
   const safeVisitId = String(visitId ?? '').trim()
@@ -63,6 +65,18 @@ export default function VisitsAssistant() {
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState([buildInitialMessage()])
   const [isThinking, setIsThinking] = useState(false)
+  const [typingAssistantId, setTypingAssistantId] = useState(null)
+  const typingTimeoutRef = useRef(null)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const shoppersById = useMemo(() => {
     return new Map((shoppers ?? []).map((shopper) => [shopper.id, shopper]))
@@ -108,6 +122,87 @@ export default function VisitsAssistant() {
     }
   }
 
+  const appendAssistantMessageWithTypewriter = (result) => {
+    return new Promise((resolve) => {
+      const assistantId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const fullText = String(result?.answer ?? '')
+      const matchedVisits = Array.isArray(result?.matchedVisits) ? result.matchedVisits : []
+      const suggestions = Array.isArray(result?.suggestions) ? result.suggestions : []
+
+      if (!isMountedRef.current) {
+        resolve()
+        return
+      }
+
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: assistantId,
+          role: 'assistant',
+          text: '',
+          matches: [],
+          suggestions: [],
+        },
+      ])
+      setTypingAssistantId(assistantId)
+
+      if (!fullText) {
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  text: fullText,
+                  matches: matchedVisits,
+                  suggestions,
+                }
+              : message,
+          ),
+        )
+        setTypingAssistantId(null)
+        resolve()
+        return
+      }
+
+      let currentLength = 0
+
+      const writeStep = () => {
+        if (!isMountedRef.current) {
+          resolve()
+          return
+        }
+
+        currentLength = Math.min(fullText.length, currentLength + TYPEWRITER_CHUNK_SIZE)
+        const isDone = currentLength >= fullText.length
+        const nextText = fullText.slice(0, currentLength)
+
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  text: nextText,
+                  matches: isDone ? matchedVisits : [],
+                  suggestions: isDone ? suggestions : [],
+                }
+              : message,
+          ),
+        )
+
+        if (isDone) {
+          setTypingAssistantId(null)
+          typingTimeoutRef.current = null
+          resolve()
+          return
+        }
+
+        typingTimeoutRef.current = window.setTimeout(writeStep, TYPEWRITER_DELAY_MS)
+      }
+
+      typingTimeoutRef.current = window.setTimeout(writeStep, TYPEWRITER_DELAY_MS)
+    })
+  }
+
   const handleAsk = async (overrideQuestion = '') => {
     const userQuestion = String(overrideQuestion || question).trim()
     if (!userQuestion || isThinking) return
@@ -134,16 +229,7 @@ export default function VisitsAssistant() {
 
     const finalResult = await askWithLlmFallback(userQuestion, localResult)
 
-    setMessages((previous) => [
-      ...previous,
-      {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        text: finalResult.answer,
-        matches: finalResult.matchedVisits,
-        suggestions: finalResult.suggestions,
-      },
-    ])
+    await appendAssistantMessageWithTypewriter(finalResult)
 
     setIsThinking(false)
   }
@@ -180,7 +266,12 @@ export default function VisitsAssistant() {
                 {message.role === 'user' ? 'أنت' : 'المساعد'}
               </div>
 
-              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{message.text}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">
+                {message.text}
+                {typingAssistantId === message.id && (
+                  <span className="ms-1 inline-block animate-pulse text-indigo-500">|</span>
+                )}
+              </p>
 
               {Array.isArray(message.matches) && message.matches.length > 0 && (
                 <div className="mt-3 grid gap-2">
@@ -207,8 +298,9 @@ export default function VisitsAssistant() {
                     <button
                       key={`${message.id}-${suggestion}`}
                       type="button"
+                      disabled={isThinking}
                       onClick={() => handleAsk(suggestion)}
-                      className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                      className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {suggestion}
                     </button>
@@ -218,7 +310,7 @@ export default function VisitsAssistant() {
             </article>
           ))}
 
-          {isThinking && (
+          {isThinking && !typingAssistantId && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               <LoaderCircle className="h-4 w-4 animate-spin" />
               جاري تحليل السؤال...
