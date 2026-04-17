@@ -475,9 +475,6 @@ export default function Reports() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div>
             <h2 className="font-display text-2xl font-black text-slate-900">تقارير الزيارات التحليلية</h2>
-            <p className="text-sm text-slate-500">
-              لوحة متابعة شبيهة بـ Power BI مبنية على نفس أرقام لوحة التحكم
-            </p>
           </div>
 
           {canExportPdf && (
