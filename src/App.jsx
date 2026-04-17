@@ -205,11 +205,13 @@ function isMissingTableError(error, tableName) {
 }
 
 function toArabicUserStatus(value) {
-  return value === 'active' || value === 'نشط' ? 'نشط' : 'غير نشط'
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized === 'active' || normalized === 'نشط' ? 'نشط' : 'غير نشط'
 }
 
 function toDbUserStatus(value) {
-  return value === 'active' || value === 'نشط' ? 'active' : 'inactive'
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized === 'active' || normalized === 'نشط' ? 'active' : 'inactive'
 }
 
 function generateMembershipId() {
@@ -304,6 +306,24 @@ function normalizeAssignedIds(value) {
   return Array.isArray(value) ? value.filter(Boolean) : []
 }
 
+function normalizeAdminRole(value) {
+  const normalized = String(value ?? '').trim().toLowerCase()
+
+  if (['superadmin', 'super_admin', 'super-admin'].includes(normalized)) {
+    return 'superadmin'
+  }
+
+  if (['ops', 'operation', 'operations'].includes(normalized)) {
+    return 'ops'
+  }
+
+  if (['admin', 'subadmin', 'sub-admin', 'administrator'].includes(normalized)) {
+    return 'admin'
+  }
+
+  return normalized || 'admin'
+}
+
 function mapAdminRow(row) {
   const personalEmail =
     row.personal_email ?? row.secondary_email ?? row.email_personal ?? row.email ?? ''
@@ -316,7 +336,7 @@ function mapAdminRow(row) {
     password: row.password ?? '',
     city: row.city ?? '',
     status: toArabicUserStatus(row.status),
-    role: row.role ?? 'admin',
+    role: normalizeAdminRole(row.role),
     assignedShopperIds: normalizeAssignedIds(row.assigned_shopper_ids),
   }
 }
@@ -1132,7 +1152,11 @@ function App() {
       SUPER_ADMIN_ACCOUNT.personalEmail || SUPER_ADMIN_ACCOUNT.email,
     )
 
-    if (rootSuperAdminEmail) {
+    const hasManagedSuperAdminWithSameEmail = superadminRecipients.some(
+      (recipient) => normalizeEmail(recipient.email) === rootSuperAdminEmail,
+    )
+
+    if (rootSuperAdminEmail && !hasManagedSuperAdminWithSameEmail) {
       superadminRecipients.push({
         id: SUPER_ADMIN_ACCOUNT.id,
         role: 'superadmin',
