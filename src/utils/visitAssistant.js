@@ -1,12 +1,3 @@
-// Flexible keywords for 'top shopper' questions
-const TOP_SHOPPER_KEYWORDS = [
-  'اعلى متحري', 'أعلى متحري', 'اكثر متحري', 'أكثر متحري', 'top shopper', 'most visits', 'most active', 'top performer',
-  'مين عمل زيارات اكتر', 'مين عمل زيارات أكثر', 'مين نفذ زيارات اكتر', 'مين نفذ زيارات أكثر',
-  'مين جاب اعلى تقييم', 'مين جاب أعلى تقييم', 'مين تقييمه اعلى', 'مين تقييمه أعلى', 'افضل متحري', 'أفضل متحري',
-  'مين عنده زيارات كتير', 'مين عنده زيارات أكثر', 'مين عنده تقييم عالي', 'مين عنده تقييم أعلى',
-  'مين متفوق', 'مين متفوق في الزيارات', 'مين متفوق في التقييمات',
-  'top rated', 'highest rating', 'best rating', 'most rated', 'top points', 'اعلى نقاط', 'أعلى نقاط',
-];
 const COUNT_KEYWORDS = ['كم', 'عدد', 'how many', 'count', 'total']
 const LATEST_KEYWORDS = ['latest', 'last', 'recent', 'اخر', 'آخر', 'حديثة']
 const TODAY_KEYWORDS = ['today', 'اليوم', 'النهارده', 'نهارده']
@@ -291,72 +282,6 @@ export function summarizeVisitsForModel(visits, shoppersById, limit = 80) {
 }
 
 export function runVisitAssistant({ question, visits = [], shoppers = [] }) {
-    // Detect top shopper questions (visits or ratings)
-    if (TOP_SHOPPER_KEYWORDS.some((kw) => normalizedQuestion.includes(normalizeText(kw)))) {
-      // Aggregate visits per shopper
-      const visitsByShopper = new Map();
-      for (const visit of visits) {
-        if (!visit.assignedShopperId) continue;
-        const count = visitsByShopper.get(visit.assignedShopperId) || 0;
-        visitsByShopper.set(visit.assignedShopperId, count + 1);
-      }
-      // Find top by visits
-      let topShopperId = null;
-      let maxVisits = 0;
-      for (const [shopperId, count] of visitsByShopper.entries()) {
-        if (count > maxVisits) {
-          maxVisits = count;
-          topShopperId = shopperId;
-        }
-      }
-      // Find top by rating if available
-      let topRatedShopperId = null;
-      let maxRating = 0;
-      const ratingsByShopper = new Map();
-      for (const visit of visits) {
-        if (!visit.assignedShopperId || !visit.rating) continue;
-        const arr = ratingsByShopper.get(visit.assignedShopperId) || [];
-        arr.push(Number(visit.rating));
-        ratingsByShopper.set(visit.assignedShopperId, arr);
-      }
-      for (const [shopperId, ratings] of ratingsByShopper.entries()) {
-        const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
-        if (avg > maxRating) {
-          maxRating = avg;
-          topRatedShopperId = shopperId;
-        }
-      }
-      // Prepare main points
-      const shoppersById = new Map((shoppers ?? []).map((shopper) => [shopper.id, shopper]));
-      let answer = '';
-      if (topShopperId && shoppersById.get(topShopperId)) {
-        const shopper = shoppersById.get(topShopperId);
-        answer += `أكثر متحري خفي نشاطًا هو "${shopper.name}" بعدد ${maxVisits} زيارة. هذا يعني أنه نفذ أكبر عدد زيارات في الفترة الحالية.`;
-        answer += `\nمثال: ${shopper.name} شارك في ${maxVisits} زيارة، في مدن مثل: ${[...new Set(visits.filter(v => v.assignedShopperId === topShopperId).map(v => v.city))].slice(0,2).join(', ') || 'مدن مختلفة'}.`;
-      }
-      if (topRatedShopperId && shoppersById.get(topRatedShopperId)) {
-        const shopper = shoppersById.get(topRatedShopperId);
-        answer += (answer ? '\n\n' : '') + `أما أعلى تقييم فكان من نصيب "${shopper.name}" بمتوسط تقييم ${maxRating.toFixed(2)} من 5.`;
-        answer += `\nمثال: ${shopper.name} حصل على تقييمات مرتفعة في زيارات مثل: ${[...new Set(visits.filter(v => v.assignedShopperId === topRatedShopperId && v.rating).map(v => v.officeName))].slice(0,2).join(', ') || 'عدة مكاتب'}.`;
-      }
-      if (!answer) {
-        answer = 'لا توجد بيانات كافية عن المتحريين الخفيين أو التقييمات حالياً.';
-      } else {
-        answer += '\n\nتحب تشوف تفاصيل زيارات المتحري الأعلى أو مقارنة مع متحريين آخرين؟ اسألني بأي صياغة تعجبك!';
-      }
-      return {
-        intent: 'top_shopper_summary',
-        answer,
-        matchedVisits: [],
-        suggestions: [
-          'هات تفاصيل زيارات المتحري الأعلى',
-          'قارن بين متحريين في الأداء',
-          'مين أكتر متحري نشط الشهر ده؟',
-          'مين جاب أعلى تقييم في جدة؟',
-        ],
-        needsLlm: false,
-      };
-    }
   const safeQuestion = String(question ?? '').trim()
   const normalizedQuestion = normalizeText(safeQuestion)
 
