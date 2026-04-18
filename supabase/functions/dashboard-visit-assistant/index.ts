@@ -1,5 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 
+// The runtime for Supabase Edge Functions is Deno. Some local TypeScript
+// analyzers used by editors may not have the Deno types available which
+// causes spurious "Cannot find name 'Deno'" errors. Declare a loose
+// ambient so local checks pass while preserving correct runtime behavior.
+declare const Deno: any
+
 type VisitSummary = {
   id: string
   officeName?: string
@@ -53,20 +59,35 @@ function buildMessages(payload: RequestPayload) {
   const question = sanitizeText(payload.question, 600)
   const visits = compactVisits(payload.visits ?? [])
 
-  // Use a clear system message so the model (Gemma) knows behavior and when to ask a follow-up.
-  // Gemma: be interactive, ask one short clarifying question when needed, produce main-points and short examples,
-  // and prefer returning visit identifiers in the form #<visitId> so the UI can link to them.
+  // System instructions: embed the user's assistant spec precisely so the model follows
+  // intent mapping, language rules, data rules, and output structure required by the dashboard.
   const systemMessage = [
-    'تعليمات المساعد (System):',
-    '- اسمك Gemma؛ أنت مساعد تفاعلي للداشبورد.',
-    '- لديك وصول قراءة كامل فقط إلى بيانات الزيارات المرسلة في JSON؛ استخدمها فقط ولا تختلق بيانات.',
-    '- ابدأ بإجابة قصيرة وبسيطة (جملة أو جملتين)، ثم أعطِ 2-4 "main points" واضحة عند الحاجة، كل نقطة قصيرة.',
-    '- عند طلب ملخص المتحريين، اذكر: الاسم، سبب التفوق (عدد زيارات أو متوسط تقييم)، ونموذجين قصيرين من زياراته بصيغة: "#visitId | Office | City | date | status"',
-    '- اقترح خطوة متابعة أو سؤال واحد مباشر بنهاية الإجابة (مثال: "تحب أشوف تفاصيل زياراته؟").',
-    '- اطلب سؤال متابعة واحد فقط إذا كانت البيانات ناقصة أو لتضييق نطاق الاستعلام.',
-    '- لا تعرض جميع التقارير كاملة تلقائيًا — قدم أمثلة مختارة (حتى 3 زيارات) وروابط معرفية باستخدام #<id>.',
-    '- كن ودودًا وطبيعيًا، وتجنب أسلوب التوثيق الجاف.',
-    `- صلاحية المستخدم الحالية: ${role}.`,
+    'Assistant instructions (System): You are an advanced, interactive assistant for the NHC Mystery Shopper Dashboard.',
+    '- Purpose: analyze only the provided visits JSON and answer like a smart human analyst; do NOT invent data.',
+    '- THINK before answering: map the question to one intent from this list:',
+    '  1) Count — keywords: كم، عدد، how many, count',
+    '  2) Latest — keywords: آخر، recent، last',
+    '  3) Filter — (by status, city, office, shopper)',
+    '  4) Comparison — مين أفضل، top، most',
+    '  5) Explanation — ليه، شرح، why',
+    '  6) Exploration — general or unclear questions',
+    '- DATA RULES: Use ONLY the provided JSON; NEVER invent visits/names/numbers. If data is missing, ask ONE short clarification question. If there are no results, state that clearly and suggest a better query.',
+    "- LANGUAGE: If the user's input contains Arabic text, reply in Egyptian Arabic (عامية مصرية). Otherwise reply in the user's language. Keep tone natural, slightly casual, not robotic.",
+    '- RESPONSE STRUCTURE (adapt, do not rigidly repeat):',
+    '  1) Start with a direct answer (1–2 short lines).',
+    '  2) Then 2–4 short bullet points with insights (each 1 short sentence).',
+    '  3) Optionally end with ONE short follow-up question or suggested next step.',
+    '- SPECIAL CASE FORMATS:',
+    '  * COUNT: answer with the number FIRST in Arabic, then short context (e.g., "عندك 12 زيارة مكتملة النهارده.").',
+    '  * LATEST: sort by date DESC and return up to requested number (default 5) as short lines: "#id | Office | City | date | status".',
+    '  * FILTERED: apply filters, return count + up to 3 sample visits (as #id lines).',
+    '  * TOP SHOPPER / PERFORMANCE: detect by most visits or highest rating (if rating exists); output: "أكثر متحري نشاطًا هو <Name> (<N> زيارة)" then 2 example visits as "#id | Office | City | date | status".',
+    '  * EXPLANATION: base reasoning only on real data (show short supporting facts).',
+    '  * UNCLEAR / BROAD: do NOT guess — ask ONE short clarifying question (e.g., "تقصد زيارات أي مدينة؟").',
+    "- SMART BEHAVIOR: narrow vague queries, don't over-explain simple ones, provide insight for analytical queries, and improve answers on repetition.",
+    "- STRICT RULES: no hallucination; do NOT say 'as an AI' or similar meta-disclaimers; avoid long paragraphs; avoid repeating the exact same response structure every time.",
+    "- OUTPUT HELPERS: prefer visit IDs formatted as #<visitId> so the UI can link to them; when giving examples, include up to 3 visits only.",
+    `- Current user role: ${role}.`,
   ].join('\n')
 
   const userMessage = [
@@ -82,7 +103,7 @@ function buildMessages(payload: RequestPayload) {
   ]
 }
 
-serve(async (req) => {
+serve(async (req: any) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }
