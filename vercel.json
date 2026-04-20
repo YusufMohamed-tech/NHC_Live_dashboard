@@ -6,7 +6,7 @@
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/api/(.*)", "dest": "/api/$1.cjs" },
     { "src": "/(.*)", "dest": "/dist/$1" }
   ]
 }
