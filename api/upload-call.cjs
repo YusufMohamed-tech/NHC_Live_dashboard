@@ -72,13 +72,18 @@ module.exports = async (req, res) => {
       folderId
     })
 
-    const inserted = await supabaseService.insertRecording({
-      table: process.env.SUPABASE_RECORDINGS_TABLE || 'call_recordings',
-      callId,
-      googleDriveFileId: fileId,
-      recordingUrl: previewUrl,
-      createdAt: new Date().toISOString()
-    })
+    let inserted = null
+    try {
+      inserted = await supabaseService.insertRecording({
+        table: process.env.SUPABASE_RECORDINGS_TABLE || 'call_recordings',
+        callId,
+        googleDriveFileId: fileId,
+        recordingUrl: previewUrl,
+        createdAt: new Date().toISOString()
+      })
+    } catch (dbErr) {
+      logger.warn('Failed to insert recording metadata to Supabase (non-fatal)', dbErr && dbErr.message ? dbErr.message : dbErr)
+    }
 
     return res.status(200).json({ success: true, fileId, url: previewUrl, supabase: inserted })
   } catch (err) {

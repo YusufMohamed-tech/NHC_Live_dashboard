@@ -257,27 +257,26 @@ export default function useVisits() {
       if (payload.files && payload.files.length > 0) {
         const uploadedUrls = []
 
-        // upload each file
+        // upload each file to Google Drive via the backend API
         for (const file of payload.files) {
           try {
-            const safeName = (file.name || 'file').replace(/\s+/g, '_')
-            const objectPath = `visits/${data.id}/${Date.now()}_${safeName}`
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('call_id', data.id)
 
-            const { error: uploadError } = await supabase.storage
-              .from('visit-files')
-              .upload(objectPath, file)
+            const response = await fetch('/api/upload-call', {
+              method: 'POST',
+              body: formData,
+            })
 
-            if (uploadError) {
-              // skip this file on error
-              console.warn('visit file upload failed', uploadError)
+            const result = await response.json()
+
+            if (!response.ok || !result.success) {
+              console.warn('visit file upload failed', result.error || result)
               continue
             }
 
-            const { data: urlData } = await supabase.storage
-              .from('visit-files')
-              .getPublicUrl(objectPath)
-
-            if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl)
+            if (result.url) uploadedUrls.push(result.url)
           } catch (err) {
             console.warn('upload error', err)
           }
