@@ -269,16 +269,22 @@ export default function useVisits() {
               body: formData,
             })
 
-            const result = await response.json()
+            const result = await response.json().catch(() => ({ success: false, error: 'Invalid JSON response from API. File might be too large (max 4.5MB).' }))
 
             if (!response.ok || !result.success) {
-              console.warn('visit file upload failed', result.error || result)
+              const errMsg = result.error || response.statusText || 'Unknown error'
+              console.warn('visit file upload failed', errMsg)
+              alert(`فشل رفع الملف لـ Google Drive:\n${errMsg}`)
               continue
             }
 
-            if (result.url) uploadedUrls.push(result.url)
+            if (result.url) {
+              uploadedUrls.push(result.url)
+              alert('تم الرفع لـ Google Drive بنجاح!')
+            }
           } catch (err) {
             console.warn('upload error', err)
+            alert(`حدث خطأ أثناء رفع الملف: ${err.message}`)
           }
         }
 
