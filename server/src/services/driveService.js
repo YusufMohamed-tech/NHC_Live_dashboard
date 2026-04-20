@@ -3,6 +3,16 @@ const stream = require('stream')
 const logger = require('../utils/logger')
 
 function getAuthClient() {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN
+
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground")
+    oauth2Client.setCredentials({ refresh_token: refreshToken })
+    return oauth2Client
+  }
+
   // Support primary env names and fallback *_AUTO variants
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL_AUTO
   let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_AUTO
@@ -22,7 +32,7 @@ function getAuthClient() {
   }
 
   if (!clientEmail || !privateKey) {
-    throw new Error('Missing Google service account credentials')
+    throw new Error('Missing Google credentials (either OAuth2 or Service Account)')
   }
 
   // privateKey in env may have literal "\\n" sequences; convert them
@@ -33,8 +43,10 @@ function getAuthClient() {
 
 async function uploadFile({ fileBuffer, mimeType, fileName, folderId, retries = 3 }) {
   const auth = getAuthClient()
-  // authorize to make sure credentials are valid
-  await auth.authorize()
+  // authorize to make sure credentials are valid (only for JWT)
+  if (typeof auth.authorize === 'function') {
+    await auth.authorize()
+  }
   const drive = google.drive({ version: 'v3', auth })
 
   let attempt = 0
