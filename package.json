@@ -1,4 +1,21 @@
 {
+  "name": "nhc-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server/src/index.js",
+    "dev": "nodemon server/src/index.js",
+    "vercel-build": "echo \"skip build\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.37.0",
+    "busboy": "^1.6.0",
+    "dotenv": "^16.1.4",
+    "googleapis": "^131.0.0",
+    "winston": "^3.8.2"
+  }
+}
+{
   "name": "demo-project",
   "private": true,
   "version": "0.0.0",
