@@ -3,11 +3,12 @@ const stream = require('stream')
 const logger = require('../utils/logger')
 
 function getAuthClient() {
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL
-  let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+  // Support primary env names and fallback *_AUTO variants
+  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL_AUTO
+  let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_AUTO
 
-  // Alternative: support base64 JSON via GOOGLE_SERVICE_ACCOUNT_JSON_B64
-  const jsonB64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64
+  // Alternative: support base64 JSON via GOOGLE_SERVICE_ACCOUNT_JSON_B64 or fallback GOOGLE_SERVICE_ACCOUNT_JSON_B64_AUTO
+  const jsonB64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64_AUTO
   if (jsonB64 && (!clientEmail || !privateKey)) {
     try {
       const decoded = Buffer.from(jsonB64, 'base64').toString('utf8')

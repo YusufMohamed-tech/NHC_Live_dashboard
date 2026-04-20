@@ -1,4 +1,21 @@
-const Busboy = require('busboy')
+// Robustly import Busboy to support different package export styles (CJS/ESM)
+let BusboyPkg
+try {
+  BusboyPkg = require('busboy')
+} catch (e) {
+  BusboyPkg = null
+}
+const BusboyCtor = BusboyPkg && (BusboyPkg.default || BusboyPkg.Busboy || BusboyPkg)
+function makeBusboy(opts) {
+  if (!BusboyCtor) throw new Error('Busboy module not available')
+  try {
+    return new BusboyCtor(opts)
+  } catch (e) {
+    // some builds export a factory function instead of a constructor
+    try { return BusboyCtor(opts) } catch (e2) { throw e2 }
+  }
+}
+
 const driveService = require('../server/src/services/driveService')
 const supabaseService = require('../server/src/services/supabaseService')
 const logger = require('../server/src/utils/logger')
@@ -16,7 +33,7 @@ module.exports = async (req, res) => {
   const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE_BYTES || '10485760', 10)
 
   try {
-    const bb = new Busboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE } })
+    const bb = makeBusboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE } })
 
     const chunks = []
     let fileName = null
@@ -65,7 +82,7 @@ module.exports = async (req, res) => {
 
       try {
         const buffer = Buffer.concat(chunks)
-        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID_AUTO
         if (!folderId) return finishWithError(Object.assign(new Error('Missing GOOGLE_DRIVE_FOLDER_ID'), { status: 500 }))
 
         const finalFileName = `${callId ? callId + '_' : ''}${Date.now()}_${fileName}`
