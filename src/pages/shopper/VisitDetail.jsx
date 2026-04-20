@@ -138,22 +138,41 @@ export default function VisitDetail({ fromCompleted = false }) {
           <p className="mt-2 text-sm text-slate-600">{visit.scenario}</p>
         </div>
         {visit.fileUrls && visit.fileUrls.length > 0 && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-black text-slate-800">مرفقات الزيارة</p>
+          <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+            <p className="text-sm font-black text-slate-800">مرفقات الزيارة الصوتية</p>
             <div className="mt-2 space-y-2">
               {visit.fileUrls.map((url, idx) => {
+                const isGoogleDrive = String(url).includes('drive.google.com')
                 const ext = String(url).split('.').pop()?.toLowerCase() || ''
-                const isAudio = ['mp3', 'wav', 'm4a', 'webm', 'aac'].includes(ext)
+                const isDirectAudio = ['mp3', 'wav', 'm4a', 'webm', 'aac'].includes(ext)
 
                 return (
-                  <div key={idx} className="rounded-lg border p-2">
-                    {isAudio ? (
+                  <div key={idx} className="rounded-lg border border-slate-200 bg-white p-3">
+                    {isGoogleDrive ? (
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-slate-800">ملف صوتي {idx + 1}</p>
+                          <p className="text-xs text-slate-500">محفوظ في Google Drive</p>
+                        </div>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                        >
+                          فتح الملف
+                        </a>
+                      </div>
+                    ) : isDirectAudio ? (
                       <audio controls className="w-full">
                         <source src={url} />
                         متصفحك لا يدعم تشغيل الصوت
                       </audio>
                     ) : (
-                      <a href={url} target="_blank" rel="noreferrer" className="text-indigo-600">
+                      <a href={url} target="_blank" rel="noreferrer" className="text-sm font-bold text-indigo-600 hover:underline">
                         افتح المرفق
                       </a>
                     )}

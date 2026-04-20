@@ -386,6 +386,7 @@ function mapVisitRow(row) {
     scores: row.scores && typeof row.scores === 'object' ? row.scores : {},
     notes: row.notes ?? '',
     pointsEarned: Number(row.points_earned ?? 0),
+    fileUrls: Array.isArray(row.file_urls) ? row.file_urls : [],
   }
 }
 
@@ -2020,7 +2021,39 @@ function App() {
       return null
     }
 
-    const nextVisit = mapVisitRow(dbVisit)
+    let nextVisit = mapVisitRow(dbVisit)
+
+    // Upload audio files to Google Drive if provided
+    if (payload.files && payload.files.length > 0) {
+      const uploadedUrls = []
+      for (const file of payload.files) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('call_id', dbVisit.id)
+          const response = await fetch('/api/upload-call', { method: 'POST', body: formData })
+          const result = await response.json().catch(() => ({ success: false, error: 'Invalid JSON response' }))
+          if (response.ok && result?.success && result?.url) {
+            uploadedUrls.push(result.url)
+          } else {
+            console.warn('Audio file upload failed:', result?.error || response.statusText)
+          }
+        } catch (uploadErr) {
+          console.warn('Audio file upload error:', uploadErr)
+        }
+      }
+      if (uploadedUrls.length > 0) {
+        const { data: updatedWithFiles } = await supabase
+          .from('visits')
+          .update({ file_urls: uploadedUrls })
+          .eq('id', dbVisit.id)
+          .select('*')
+          .single()
+        if (updatedWithFiles) {
+          nextVisit = mapVisitRow(updatedWithFiles)
+        }
+      }
+    }
 
     setVisits((previous) => [nextVisit, ...previous])
 
@@ -2129,7 +2162,39 @@ function App() {
       return null
     }
 
-    const updatedVisit = mapVisitRow(dbVisit)
+    let updatedVisit = mapVisitRow(dbVisit)
+
+    // Upload new audio files to Google Drive if provided
+    if (updates.files && updates.files.length > 0) {
+      const uploadedUrls = [...(updatedVisit.fileUrls || [])]
+      for (const file of updates.files) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('call_id', visitId)
+          const response = await fetch('/api/upload-call', { method: 'POST', body: formData })
+          const result = await response.json().catch(() => ({ success: false, error: 'Invalid JSON response' }))
+          if (response.ok && result?.success && result?.url) {
+            uploadedUrls.push(result.url)
+          } else {
+            console.warn('Audio file upload failed:', result?.error || response.statusText)
+          }
+        } catch (uploadErr) {
+          console.warn('Audio file upload error:', uploadErr)
+        }
+      }
+      if (uploadedUrls.length > (updatedVisit.fileUrls || []).length) {
+        const { data: updatedWithFiles } = await supabase
+          .from('visits')
+          .update({ file_urls: uploadedUrls })
+          .eq('id', visitId)
+          .select('*')
+          .single()
+        if (updatedWithFiles) {
+          updatedVisit = mapVisitRow(updatedWithFiles)
+        }
+      }
+    }
 
     setVisits((previous) =>
       previous.map((visit) => (visit.id === visitId ? updatedVisit : visit)),

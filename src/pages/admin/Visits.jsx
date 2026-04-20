@@ -2,6 +2,7 @@ import {
   Building2,
   CalendarDays,
   ExternalLink,
+  Headphones,
   Pencil,
   Plus,
   Search,
@@ -162,6 +163,7 @@ export default function Visits() {
       time: editingVisit.time,
       assignedShopperId: canAssignShopper ? editingVisit.assignedShopperId || null : undefined,
       scenario: editingVisit.scenario,
+      files: editingVisit.newFiles || [],
     })
 
     setEditingVisit(null)
@@ -314,6 +316,29 @@ export default function Visits() {
                   المتحري الخفي: {shopper ? shopper.name : 'في انتظار التعيين'}
                 </span>
               </div>
+
+              {visit.fileUrls && visit.fileUrls.length > 0 && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
+                    <Headphones className="h-3.5 w-3.5" />
+                    مرفقات صوتية ({visit.fileUrls.length})
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {visit.fileUrls.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        تشغيل الملف {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </article>
           )
         })}
@@ -658,6 +683,41 @@ export default function Visits() {
                   }
                   rows={3}
                   className="w-full rounded-xl border border-slate-300 bg-white p-3 outline-none focus:border-indigo-500"
+                />
+              </label>
+
+              {editingVisit.fileUrls && editingVisit.fileUrls.length > 0 && (
+                <div className="space-y-1 text-sm text-slate-600 sm:col-span-2">
+                  <span className="font-bold">المرفقات الصوتية الحالية</span>
+                  <div className="mt-1 space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    {editingVisit.fileUrls.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        <Headphones className="h-3 w-3" />
+                        ملف صوتي {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
+                <span>إضافة ملف صوتي جديد (اختياري)</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(event) =>
+                    setEditingVisit((previous) => ({
+                      ...previous,
+                      newFiles: event.target.files ? Array.from(event.target.files) : [],
+                    }))
+                  }
+                  className="w-full"
                 />
               </label>
 
