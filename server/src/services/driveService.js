@@ -52,7 +52,8 @@ async function uploadFile({ fileBuffer, mimeType, fileName, folderId, retries = 
           mimeType,
           body: bufferStream
         },
-        fields: 'id, webViewLink'
+        fields: 'id, webViewLink',
+        supportsAllDrives: true
       })
 
       const fileId = res.data.id
