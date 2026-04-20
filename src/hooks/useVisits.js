@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 
 const ERROR_MESSAGE = 'حدث خطأ في تحميل البيانات، يرجى المحاولة مجدداً'
 const VISITS_SELECT =
-  'id, office_name, city, status, scenario, membership_id, shopper_id, visit_date, scores, notes, points_earned, created_at, shoppers:shopper_id(name)'
+  'id, office_name, city, status, scenario, membership_id, shopper_id, visit_date, scores, notes, points_earned, file_urls, created_at, shoppers:shopper_id(name)'
 
 function normalizeTimeLabel(value) {
   if (!value) return '10:00 صباحاً'
@@ -95,6 +95,8 @@ function mapVisitRow(row) {
     assignedShopperName: row.shoppers?.name ?? '',
     scores: row.scores ?? {},
     notes: row.notes ?? '',
+    // file_urls is stored as text[] in Postgres; expose as JS array of strings
+    fileUrls: Array.isArray(row.file_urls) ? row.file_urls : [],
     pointsEarned: Number(row.points_earned ?? 0),
     waitMinutes: 0,
     createdAt: row.created_at,
@@ -234,18 +236,76 @@ export default function useVisits() {
   }, [fetchVisits])
 
   const addVisit = useCallback(async (payload) => {
+    // Insert visit row first (without files). Files will be uploaded to storage
+    // and the visit updated with file URLs afterwards.
     const { data, error: insertError } = await supabase
       .from('visits')
       .insert(buildInsertPayload(payload))
       .select(VISITS_SELECT)
       .single()
 
-    if (insertError) {
+    if (insertError || !data) {
       setError(ERROR_MESSAGE)
       return null
     }
 
-    const mapped = mapVisitRow(data)
+    let mapped = mapVisitRow(data)
+
+    // If files were provided, upload them to the 'visit-files' bucket and
+    // update the visit.row.file_urls with the public URLs.
+    try {
+      if (payload.files && payload.files.length > 0) {
+        const uploadedUrls = []
+
+        // upload each file
+        // eslint-disable-next-line no-restricted-syntax
+        for (const file of payload.files) {
+          try {
+            const safeName = (file.name || 'file').replace(/\s+/g, '_')
+            const objectPath = `visits/${data.id}/${Date.now()}_${safeName}`
+
+            const { error: uploadError } = await supabase.storage
+              .from('visit-files')
+              .upload(objectPath, file)
+
+            if (uploadError) {
+              // skip this file on error
+              // eslint-disable-next-line no-console
+              console.warn('visit file upload failed', uploadError)
+              continue
+            }
+
+            const { data: urlData } = await supabase.storage
+              .from('visit-files')
+              .getPublicUrl(objectPath)
+
+            if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl)
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('upload error', err)
+          }
+        }
+
+        if (uploadedUrls.length > 0) {
+          // update visit row with file URLs
+          const { data: updated, error: updateError } = await supabase
+            .from('visits')
+            .update({ file_urls: uploadedUrls })
+            .eq('id', data.id)
+            .select(VISITS_SELECT)
+            .single()
+
+          if (!updateError && updated) {
+            mapped = mapVisitRow(updated)
+          }
+        }
+      }
+    } catch (err) {
+      // swallow upload errors but log for debugging
+      // eslint-disable-next-line no-console
+      console.warn('file upload process failed', err)
+    }
+
     await syncShopperProgress(null, mapped)
     setError('')
     return mapped

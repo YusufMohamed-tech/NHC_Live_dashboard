@@ -137,6 +137,32 @@ export default function VisitDetail({ fromCompleted = false }) {
           <p className="text-sm font-black text-slate-800">وصف السيناريو</p>
           <p className="mt-2 text-sm text-slate-600">{visit.scenario}</p>
         </div>
+        {visit.fileUrls && visit.fileUrls.length > 0 && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-sm font-black text-slate-800">مرفقات الزيارة</p>
+            <div className="mt-2 space-y-2">
+              {visit.fileUrls.map((url, idx) => {
+                const ext = String(url).split('.').pop()?.toLowerCase() || ''
+                const isAudio = ['mp3', 'wav', 'm4a', 'webm', 'aac'].includes(ext)
+
+                return (
+                  <div key={idx} className="rounded-lg border p-2">
+                    {isAudio ? (
+                      <audio controls className="w-full">
+                        <source src={url} />
+                        متصفحك لا يدعم تشغيل الصوت
+                      </audio>
+                    ) : (
+                      <a href={url} target="_blank" rel="noreferrer" className="text-indigo-600">
+                        افتح المرفق
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

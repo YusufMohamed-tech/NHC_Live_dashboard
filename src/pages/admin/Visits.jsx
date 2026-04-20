@@ -32,6 +32,7 @@ function getInitialVisit(shopperId = '') {
     time: 'صباحية',
     assignedShopperId: shopperId,
     scenario: '',
+    files: [],
   }
 }
 
@@ -130,6 +131,7 @@ export default function Visits() {
       status: newVisit.status,
       assignedShopperId,
       scenario: newVisit.scenario,
+      files: newVisit.files,
     })
 
     setNewVisit(getInitialVisit(''))
@@ -481,6 +483,21 @@ export default function Visits() {
                   }
                   rows={3}
                   className="w-full rounded-xl border border-slate-300 bg-white p-3 outline-none focus:border-indigo-500"
+                />
+              </label>
+
+              <label className="space-y-1 text-sm text-slate-600 sm:col-span-2">
+                <span>ملف تسجيل / صوتي (اختياري)</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(event) =>
+                    setNewVisit((previous) => ({
+                      ...previous,
+                      files: event.target.files ? Array.from(event.target.files) : [],
+                    }))
+                  }
+                  className="w-full"
                 />
               </label>
 
