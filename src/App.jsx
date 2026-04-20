@@ -316,9 +316,7 @@ function formatVisitTime(visitDate) {
   return hour24 >= 12 ? 'مسائية' : 'صباحية'
 }
 
-function normalizeAssignedIds(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : []
-}
+
 
 function normalizeAdminRole(value) {
   const normalized = String(value ?? '').trim().toLowerCase()
@@ -1129,7 +1127,7 @@ function App() {
     return true
   }
 
-  const canManageShopper = (shopperId) => {
+  const canManageShopper = () => {
     if (!activeUser) return false
     if (activeUser.role === 'superadmin') return true
     if (activeUser.role === 'admin') {

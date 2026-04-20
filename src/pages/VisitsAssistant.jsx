@@ -124,7 +124,7 @@ export default function VisitsAssistant() {
         ...localResult,
         answer: data.answer,
       }
-    } catch (err) {
+    } catch (_err) {
       // Timeout or other error — return localResult quickly to avoid long UI loading
       return localResult
     }

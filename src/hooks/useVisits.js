@@ -258,7 +258,6 @@ export default function useVisits() {
         const uploadedUrls = []
 
         // upload each file
-        // eslint-disable-next-line no-restricted-syntax
         for (const file of payload.files) {
           try {
             const safeName = (file.name || 'file').replace(/\s+/g, '_')
@@ -270,7 +269,6 @@ export default function useVisits() {
 
             if (uploadError) {
               // skip this file on error
-              // eslint-disable-next-line no-console
               console.warn('visit file upload failed', uploadError)
               continue
             }
@@ -281,7 +279,6 @@ export default function useVisits() {
 
             if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl)
           } catch (err) {
-            // eslint-disable-next-line no-console
             console.warn('upload error', err)
           }
         }
@@ -302,7 +299,6 @@ export default function useVisits() {
       }
     } catch (err) {
       // swallow upload errors but log for debugging
-      // eslint-disable-next-line no-console
       console.warn('file upload process failed', err)
     }
 

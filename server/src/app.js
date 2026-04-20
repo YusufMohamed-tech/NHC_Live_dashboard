@@ -13,7 +13,7 @@ app.use((req, res, next) => {
 app.use('/api', uploadRouter)
 
 // error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   logger.error(err && err.message ? err.message : err)
   if (err && err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ success: false, error: 'File too large' })
