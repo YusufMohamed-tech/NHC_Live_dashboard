@@ -1,7 +1,7 @@
 const Busboy = require('busboy')
-const driveService = require('./server/src/services/driveService')
-const supabaseService = require('./server/src/services/supabaseService')
-const logger = require('./server/src/utils/logger')
+const driveService = require('../server/src/services/driveService')
+const supabaseService = require('../server/src/services/supabaseService')
+const logger = require('../server/src/utils/logger')
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
