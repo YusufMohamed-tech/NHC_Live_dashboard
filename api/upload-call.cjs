@@ -1,19 +1,14 @@
-// Robustly import Busboy to support different package export styles (CJS/ESM)
-let BusboyPkg
+const fs = require('fs')
+let formidablePkg
 try {
-  BusboyPkg = require('busboy')
+  formidablePkg = require('formidable')
 } catch (e) {
-  BusboyPkg = null
+  formidablePkg = null
 }
-const BusboyCtor = BusboyPkg && (BusboyPkg.default || BusboyPkg.Busboy || BusboyPkg)
-function makeBusboy(opts) {
-  if (!BusboyCtor) throw new Error('Busboy module not available')
-  try {
-    return new BusboyCtor(opts)
-  } catch (e) {
-    // some builds export a factory function instead of a constructor
-    try { return BusboyCtor(opts) } catch (e2) { throw e2 }
-  }
+function makeFormidable(opts) {
+  if (!formidablePkg) throw new Error('formidable module not available')
+  const Ctor = formidablePkg.IncomingForm || formidablePkg.Formidable || formidablePkg
+  try { return new Ctor(opts) } catch (e) { return Ctor(opts) }
 }
 
 const driveService = require('../server/src/services/driveService')
@@ -33,89 +28,61 @@ module.exports = async (req, res) => {
   const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE_BYTES || '10485760', 10)
 
   try {
-    const bb = makeBusboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE } })
+    const form = makeFormidable({ keepExtensions: true, maxFileSize: MAX_FILE_SIZE })
+    const parsed = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) return reject(err)
+        resolve({ fields, files })
+      })
+    })
 
-    const chunks = []
-    let fileName = null
-    let mimeType = null
-    let callId = null
-    let fileReceived = false
-    let finished = false
+    const { fields, files } = parsed
+    const callId = fields && (fields.call_id || fields.callId || fields.call) || null
 
-    const finishWithError = (err) => {
-      if (finished) return
-      finished = true
-      logger.error('upload-call error', err && err.message ? err.message : err)
-      if (!res.headersSent) res.status(err.status || 500).json({ success: false, error: err.message || 'Upload failed' })
+    // Find uploaded file (support several field names)
+    let fileObj = (files && (files.file || files.file_upload || files.upload)) || null
+    if (!fileObj && files) {
+      const vals = Object.values(files)
+      if (vals.length > 0) fileObj = vals[0]
     }
 
-    bb.on('file', (fieldname, file, filename, encoding, mimetype) => {
-      fileName = filename
-      mimeType = mimetype
+    if (!fileObj) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' })
+    }
 
-      if (!mimeType || !mimeType.startsWith('audio/')) {
-        file.resume()
-        bb.destroy(Object.assign(new Error('Invalid file type, only audio allowed'), { status: 400 }))
-        return
-      }
+    // formidable may return array for same field
+    if (Array.isArray(fileObj)) fileObj = fileObj[0]
 
-      file.on('data', (data) => {
-        chunks.push(data)
-      })
+    const filePath = fileObj.filepath || fileObj.path || fileObj.file
+    const mimeType = fileObj.mimetype || fileObj.type || fileObj.mime || 'application/octet-stream'
+    const originalFilename = fileObj.originalFilename || fileObj.name || fileObj.filename || 'upload'
 
-      file.on('limit', () => {
-        bb.destroy(Object.assign(new Error('File too large'), { status: 413 }))
-      })
+    const buffer = await fs.promises.readFile(filePath)
 
-      file.on('end', () => {
-        fileReceived = true
-      })
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID_AUTO
+    if (!folderId) return res.status(500).json({ success: false, error: 'Missing GOOGLE_DRIVE_FOLDER_ID' })
+
+    const finalFileName = `${callId ? callId + '_' : ''}${Date.now()}_${originalFilename}`
+    logger.info(`Uploading ${finalFileName} (${buffer.length} bytes) to Drive`)
+
+    const { fileId, previewUrl } = await driveService.uploadFile({
+      fileBuffer: buffer,
+      mimeType,
+      fileName: finalFileName,
+      folderId
     })
 
-    bb.on('field', (name, val) => {
-      if (name === 'call_id') callId = val
+    const inserted = await supabaseService.insertRecording({
+      table: process.env.SUPABASE_RECORDINGS_TABLE || 'call_recordings',
+      callId,
+      googleDriveFileId: fileId,
+      recordingUrl: previewUrl,
+      createdAt: new Date().toISOString()
     })
 
-    bb.on('finish', async () => {
-      if (finished) return
-      if (!fileReceived) return finishWithError(Object.assign(new Error('No file uploaded'), { status: 400 }))
-
-      try {
-        const buffer = Buffer.concat(chunks)
-        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID_AUTO
-        if (!folderId) return finishWithError(Object.assign(new Error('Missing GOOGLE_DRIVE_FOLDER_ID'), { status: 500 }))
-
-        const finalFileName = `${callId ? callId + '_' : ''}${Date.now()}_${fileName}`
-        logger.info(`Uploading ${finalFileName} (${buffer.length} bytes) to Drive`)
-
-        const { fileId, previewUrl } = await driveService.uploadFile({
-          fileBuffer: buffer,
-          mimeType,
-          fileName: finalFileName,
-          folderId
-        })
-
-        const inserted = await supabaseService.insertRecording({
-          table: process.env.SUPABASE_RECORDINGS_TABLE || 'call_recordings',
-          callId,
-          googleDriveFileId: fileId,
-          recordingUrl: previewUrl,
-          createdAt: new Date().toISOString()
-        })
-
-        if (!finished) {
-          finished = true
-          return res.status(200).json({ success: true, fileId, url: previewUrl, supabase: inserted })
-        }
-      } catch (err) {
-        finishWithError(err)
-      }
-    })
-
-    bb.on('error', finishWithError)
-    req.pipe(bb)
+    return res.status(200).json({ success: true, fileId, url: previewUrl, supabase: inserted })
   } catch (err) {
     logger.error('upload-call unexpected error', err && err.message ? err.message : err)
-    return res.status(500).json({ success: false, error: err.message || 'Internal error' })
+    return res.status(err.status || 500).json({ success: false, error: err.message || 'Internal error' })
   }
 }
