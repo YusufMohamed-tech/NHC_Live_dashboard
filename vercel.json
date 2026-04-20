@@ -9,9 +9,6 @@
 }
 {
   "version": 2,
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
   "functions": {
     "api/upload-call.js": {
       "memory": 1024,
